@@ -1,0 +1,6 @@
+{
+  "summary":  "Plan de implementación para el Asistente Inteligente de Cotizaciones de M&C Construcciones Civiles. Incluye un agente conversacional con Gemini 3.8 Flash sincronizado en tiempo real con un formulario ágil, réplica exacta 1:1 de la plantilla original de Canva, cálculo automático de importes y porcentajes, vista previa interactiva en vivo, generación de PDF de alta resolución y botón de envío directo por correo electrónico.",
+  "updatedAt":  "2026-10-25T23:05:21.355718244Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

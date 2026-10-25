@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@media print {
+  body {
+    background-color: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide entire UI except document */
+  header,
+  nav,
+  aside,
+  #left-panel,
+  #top-bar,
+  #document-toolbar,
+  #modal-backdrop {
+    display: none !important;
+  }
+
+  #main-viewport {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    background: transparent !important;
+  }
+
+  #quote-document-printable {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    transform: none !important;
+    page-break-inside: avoid !important;
+  }
+}
