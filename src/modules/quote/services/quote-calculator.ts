@@ -1,9 +1,9 @@
-import { QuoteData, QuoteItem, QuoteTotals } from '../types/quote.types';
+import { QuoteData, QuoteTotals } from '../types/quote.types';
 
 /**
- * Calcula los totales y el desglose de AIU e IVA de una cotización.
- * Fórmula colombiana de construcción:
- * - Subtotal = suma de ítems
+ * Calcula los totales y el desglose de AIU e IVA a partir del Subtotal Único Global.
+ * Fórmula colombiana de obras civiles:
+ * - Subtotal = valor único global de la cotización
  * - Administración = Subtotal * (adminPct / 100)
  * - Imprevistos = Subtotal * (contingencyPct / 100)
  * - Utilidad = Subtotal * (utilityPct / 100)
@@ -11,8 +11,7 @@ import { QuoteData, QuoteItem, QuoteTotals } from '../types/quote.types';
  * - Total = Subtotal + AIU + IVA
  */
 export function calculateQuoteTotals(quote: Partial<QuoteData>): QuoteTotals {
-  const items: QuoteItem[] = quote.items || [];
-  const subtotal = items.reduce((sum, item) => sum + (Number(item.subtotal) || 0), 0);
+  const subtotal = Number(quote.subtotal) || 0;
 
   const adminAmount = subtotal * ((Number(quote.adminPct) || 0) / 100);
   const contingencyAmount = subtotal * ((Number(quote.contingencyPct) || 0) / 100);

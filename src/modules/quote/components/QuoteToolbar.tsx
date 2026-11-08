@@ -1,9 +1,21 @@
 import React from 'react';
-import { Eye, ZoomIn, ZoomOut, Maximize2, Printer } from 'lucide-react';
+import {
+  Eye,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Printer,
+  Layers,
+  FileText,
+  FileSpreadsheet,
+} from 'lucide-react';
 
 interface QuoteToolbarProps {
   zoomScale: number;
   highlightEmpty: boolean;
+  totalPages?: number;
+  activeView: 'both' | 'letter' | 'quote';
+  onViewChange: (view: 'both' | 'letter' | 'quote') => void;
   onToggleHighlight: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -14,34 +26,92 @@ interface QuoteToolbarProps {
 export const QuoteToolbar: React.FC<QuoteToolbarProps> = ({
   zoomScale,
   highlightEmpty,
+  totalPages = 1,
+  activeView,
+  onViewChange,
   onToggleHighlight,
   onZoomIn,
   onZoomOut,
   onResetZoom,
   onPrint,
 }) => {
+  const pageLabel =
+    activeView === 'letter'
+      ? '1 Hoja A4'
+      : activeView === 'quote'
+      ? `${totalPages} ${totalPages === 1 ? 'Hoja A4' : 'Hojas A4'}`
+      : `${totalPages + 1} Hojas (Dossier)`;
+
   return (
     <div
       id="document-toolbar"
-      className="px-6 py-2.5 bg-slate-900/60 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-300 shrink-0"
+      className="px-4 sm:px-6 py-2 bg-white/95 backdrop-blur border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-700 shrink-0 shadow-xs z-10"
     >
+      {/* Selector Segmentado de Vista (Dossier / Carta / Cotización) */}
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-          Vista Previa de Plantilla (Canva 1:1)
+        <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => onViewChange('both')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeView === 'both'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+            title="Ver propuesta completa: Carta de presentación + Cotización detallada"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Dossier Completo</span>
+            <span className="sm:hidden">Dossier</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onViewChange('letter')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeView === 'letter'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+            title="Ver únicamente la Carta de Presentación formal"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Carta</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onViewChange('quote')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              activeView === 'quote'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+            title="Ver únicamente la Cotización de obra civil"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Cotización</span>
+          </button>
+        </div>
+
+        <span className="text-xs font-mono font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-900 border border-blue-200">
+          {pageLabel}
         </span>
-        <span className="text-slate-600">·</span>
+
         <button
           type="button"
           onClick={onToggleHighlight}
-          className={`px-2 py-0.5 rounded text-[11px] flex items-center gap-1 transition-colors ${
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors border ${
             highlightEmpty
-              ? 'bg-amber-950/60 text-amber-300 border border-amber-800/60'
-              : 'bg-slate-800 text-slate-400'
+              ? 'bg-amber-50 text-amber-800 border-amber-300 shadow-xs'
+              : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
           }`}
           title="Resalta las variables entre paréntesis () pendientes de diligenciar"
         >
-          <Eye className="w-3 h-3" />
-          {highlightEmpty ? 'Resaltando variables ()' : 'Vista final de impresión'}
+          <Eye className="w-3.5 h-3.5" />
+          <span className="hidden md:inline">
+            {highlightEmpty ? 'Resaltando ()' : 'Vista final'}
+          </span>
         </button>
       </div>
 
@@ -50,43 +120,43 @@ export const QuoteToolbar: React.FC<QuoteToolbarProps> = ({
         <button
           type="button"
           onClick={onZoomOut}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors shadow-xs"
           title="Reducir zoom"
         >
-          <ZoomOut className="w-3.5 h-3.5" />
+          <ZoomOut className="w-4 h-4" />
         </button>
 
-        <span className="font-mono text-[11px] text-slate-400 w-10 text-center">
+        <span className="font-mono text-xs font-semibold text-slate-700 w-12 text-center bg-slate-100 py-1 rounded-md border border-slate-200">
           {Math.round(zoomScale * 100)}%
         </span>
 
         <button
           type="button"
           onClick={onZoomIn}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors shadow-xs"
           title="Aumentar zoom"
         >
-          <ZoomIn className="w-3.5 h-3.5" />
+          <ZoomIn className="w-4 h-4" />
         </button>
 
         <button
           type="button"
           onClick={onResetZoom}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors shadow-xs"
           title="Ajustar al visor"
         >
-          <Maximize2 className="w-3.5 h-3.5" />
+          <Maximize2 className="w-4 h-4" />
         </button>
 
-        <div className="h-4 w-[1px] bg-slate-800 mx-1" />
+        <div className="h-4 w-[1px] bg-slate-200 mx-1" />
 
         <button
           type="button"
           onClick={onPrint}
-          className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 transition-colors"
-          title="Imprimir directamente o guardar en PDF con el motor del navegador"
+          className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-800 font-semibold flex items-center gap-1.5 transition-colors shadow-xs"
+          title="Imprimir directamente o guardar en PDF con el navegador"
         >
-          <Printer className="w-3.5 h-3.5" />
+          <Printer className="w-4 h-4 text-slate-600" />
           <span>Imprimir</span>
         </button>
       </div>

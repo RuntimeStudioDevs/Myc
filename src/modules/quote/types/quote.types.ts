@@ -1,7 +1,9 @@
 export interface QuoteItem {
   id: string;
+  title?: string;
   description: string;
   subtotal: number;
+  mode?: 'simple' | 'detailed';
 }
 
 export interface QuoteData {
@@ -11,6 +13,8 @@ export interface QuoteData {
   date: string;
   clientName: string;
   projectName: string;
+  location?: string;
+  validityDays?: string;
   items: QuoteItem[];
   subtotal: number;
   adminPct: number;
@@ -26,6 +30,11 @@ export interface QuoteData {
   contactPhone: string;
   contactInstagram: string;
   contactEmail: string;
+  letterCity?: string;
+  letterDateLong?: string;
+  letterSummary?: string;
+  letterGreeting?: string;
+  status?: 'Enviada' | 'Aprobada' | 'Rechazada' | 'En Espera';
 }
 
 export interface QuoteTotals {

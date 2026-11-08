@@ -1,37 +1,106 @@
 @import "tailwindcss";
 
+@layer utilities {
+  .font-poppins {
+    font-family: 'Poppins', sans-serif !important;
+  }
+}
+
+.font-poppins,
+.font-poppins * {
+  font-family: 'Poppins', sans-serif !important;
+}
+
+/* ======================================================== */
+/* REGLAS EXACTAS DE IMPRESIÓN Y EXPORTACIÓN EN PDF         */
+/* ======================================================== */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
 @media print {
-  body {
-    background-color: white !important;
-    color: black !important;
-    padding: 0 !important;
-    margin: 0 !important;
+  /* Forzar conservación total de fondos, colores y gráficos */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-sizing: border-box !important;
   }
 
-  /* Hide entire UI except document */
+  /* Ocultar toda la interfaz interactiva, botones, paneles y la bóveda de renderizado en segundo plano */
   header,
   nav,
   aside,
   #left-panel,
   #top-bar,
   #document-toolbar,
-  #modal-backdrop {
+  #modal-backdrop,
+  .toast-container,
+  #pdf-render-vault,
+  .print-hidden {
     display: none !important;
   }
 
-  #main-viewport {
-    padding: 0 !important;
-    margin: 0 !important;
+  /* Neutralizar la cadena completa de contenedores ancestros */
+  html,
+  body,
+  #root,
+  #root > div,
+  #main-viewport,
+  #quote-viewport-scroll,
+  #quote-viewport-scale,
+  #quote-document-printable,
+  #presentation-letter-printable,
+  #dossier-printable-container {
+    display: block !important;
+    position: static !important;
     overflow: visible !important;
-    background: transparent !important;
+    float: none !important;
+    width: 210mm !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    border: none !important;
+    transform: none !important;
+    gap: 0 !important;
   }
 
-  #quote-document-printable {
+  /* Contenedor individual de cada hoja */
+  .quote-page-wrapper {
+    display: block !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: auto !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .quote-page-wrapper:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  /* Hoja estándar A4: altura de seguridad de 296.5mm para evitar desborde milimétrico */
+  .quote-page {
     box-shadow: none !important;
     margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    transform: none !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: 296.5mm !important;
+    max-height: 296.5mm !important;
+    min-height: 296.5mm !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
   }
 }
