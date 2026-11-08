@@ -167,8 +167,8 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
   return (
     <div className="h-full flex flex-col bg-slate-50 text-slate-800 select-text">
       {/* NAVEGADOR SEGMENTADO DE 5 PASOS */}
-      <div className="p-3 bg-white border-b border-slate-200 shrink-0 shadow-xs">
-        <nav className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+      <div className="p-2 sm:p-3 bg-white border-b border-slate-200 shrink-0 shadow-xs">
+        <nav className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto pb-1 scrollbar-none">
           {tabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -176,7 +176,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap shrink-0 border ${
+                className={`px-2.5 sm:px-3 py-2 min-h-[38px] rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap shrink-0 border ${
                   isActive
                     ? 'bg-blue-900 text-white border-blue-900 shadow-sm'
                     : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
@@ -251,6 +251,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="numeric"
                     value={quote.quoteNumber}
                     onChange={(e) => updateField('quoteNumber', e.target.value)}
                     placeholder="111"
@@ -575,6 +576,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <span className="absolute left-3.5 top-3 text-lg font-bold text-blue-900 font-mono">$</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   value={quote.subtotal || ''}
                   onChange={(e) => updateField('subtotal', Number(e.target.value) || 0)}
@@ -609,7 +611,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
               <span className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
                 Preajustes Rápidos de Distribución:
               </span>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 {[
                   [50, 50],
                   [40, 60],
@@ -622,7 +624,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                       key={`${start}-${end}`}
                       type="button"
                       onClick={() => handlePresetPercentages(start, end)}
-                      className={`px-3.5 py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
+                      className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
                         isSelected
                           ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
                           : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
@@ -643,6 +645,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <div className="relative">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={quote.startPct === 0 && quote.endPct === 100 ? '' : (quote.startPct ?? '')}
@@ -661,6 +664,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <div className="relative">
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     max="100"
                     value={quote.endPct === 0 && quote.startPct === 100 ? '' : (quote.endPct ?? '')}
@@ -756,6 +760,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="tel"
                     value={quote.contactPhone}
                     onChange={(e) => updateField('contactPhone', e.target.value)}
                     className="w-full h-12 pl-11 pr-4 text-base font-mono font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
@@ -771,6 +776,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
                 <div className="relative">
                   <input
                     type="text"
+                    inputMode="email"
                     value={quote.contactEmail}
                     onChange={(e) => updateField('contactEmail', e.target.value)}
                     className="w-full h-12 pl-11 pr-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
@@ -815,23 +821,24 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
       </div>
 
       {/* BOTONES INFERIORES DE NAVEGACIÓN ANTERIOR / SIGUIENTE */}
-      <div className="p-3.5 bg-white border-t border-slate-200 shrink-0 flex items-center justify-between">
+      <div className="p-3 sm:p-3.5 bg-white border-t border-slate-200 shrink-0 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setActiveTab((prev) => Math.max(1, prev - 1))}
           disabled={activeTab === 1}
-          className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 sm:px-4 py-2 sm:py-2.5 min-h-[42px] rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <ChevronLeft className="w-4 h-4" />
-          <span>Paso Anterior</span>
+          <ChevronLeft className="w-4 h-4 shrink-0" />
+          <span className="hidden xs:inline">Paso </span>
+          <span>Anterior</span>
         </button>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           {tabs.map((tab) => (
             <span
               key={tab.id}
-              className={`w-2 h-2 rounded-full transition-all ${
-                activeTab === tab.id ? 'w-6 bg-blue-900' : 'bg-slate-300'
+              className={`h-2 rounded-full transition-all ${
+                activeTab === tab.id ? 'w-5 sm:w-6 bg-blue-900' : 'w-2 bg-slate-300'
               }`}
             />
           ))}
@@ -841,10 +848,11 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
           type="button"
           onClick={() => setActiveTab((prev) => Math.min(5, prev + 1))}
           disabled={activeTab === 5}
-          className="px-5 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-4 sm:px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <span>{activeTab === 5 ? 'Completado' : 'Siguiente Paso'}</span>
-          <ChevronRight className="w-4 h-4" />
+          <span>{activeTab === 5 ? 'Completado' : 'Siguiente'}</span>
+          <span className="hidden xs:inline">{activeTab === 5 ? '' : ' Paso'}</span>
+          <ChevronRight className="w-4 h-4 shrink-0" />
         </button>
       </div>
     </div>

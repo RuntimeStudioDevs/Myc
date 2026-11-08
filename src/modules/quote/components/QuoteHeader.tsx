@@ -19,6 +19,8 @@ import {
   FileText,
   FileSpreadsheet,
   Cloud,
+  Menu,
+  X,
 } from 'lucide-react';
 import { isGoogleSheetsConfigured } from '../services/google-sheets.service';
 
@@ -44,7 +46,9 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
   onDownloadPdf,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
   const strategies = exportStrategyRegistry.getAll();
 
   // Cerrar el menú desplegable al hacer clic afuera
@@ -55,6 +59,12 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsDropdownOpen(false);
+      }
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsMobileMenuOpen(false);
       }
     };
 
@@ -93,30 +103,34 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
   return (
     <header
       id="top-bar"
-      className="flex items-center justify-between gap-4 px-6 py-3 bg-white border-b border-slate-200 shadow-xs shrink-0 z-20"
+      className="relative flex items-center justify-between gap-2.5 sm:gap-4 px-3 sm:px-6 py-2.5 sm:py-3 bg-white border-b border-slate-200 shadow-xs shrink-0 z-30"
     >
       {/* Marca / Identidad Corporativa */}
-      <div className="flex items-center gap-3.5 shrink-0">
-        <div className="h-11 w-11 rounded-xl bg-blue-950 flex items-center justify-center p-1 border border-blue-900 shadow-xs shrink-0">
-          <MCLogo variant="transparent" className="h-8 w-auto" />
+      <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0 min-w-0">
+        <div className="h-9 w-9 sm:h-11 sm:w-11 rounded-xl bg-blue-950 flex items-center justify-center p-1 border border-blue-900 shadow-xs shrink-0">
+          <MCLogo variant="transparent" className="h-6 sm:h-8 w-auto" />
         </div>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-sm sm:text-base font-bold tracking-tight text-slate-900 whitespace-nowrap">
-              M&C CONSTRUCCIONES CIVILES
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <span className="text-xs sm:text-base font-bold tracking-tight text-slate-900 truncate">
+              <span className="hidden sm:inline">M&C CONSTRUCCIONES CIVILES</span>
+              <span className="sm:hidden">M&C CIVILES</span>
             </span>
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Borrador Activo
             </span>
+            <span className="sm:hidden text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-slate-100 text-blue-900 border border-slate-200">
+              N° {folioNumber}
+            </span>
           </div>
-          <span className="text-[11px] text-slate-500 font-medium font-mono">
-            NIT: {quote.nit || '901795226-7'} · Editor Oficial de Cotizaciones
+          <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium font-mono truncate">
+            NIT: {quote.nit || '901795226-7'} · <span className="hidden xs:inline">Editor Oficial</span>
           </span>
         </div>
       </div>
 
-      {/* Navegación y Consecutivo Numérico */}
+      {/* Navegación y Consecutivo Numérico (Desktop >= 1024px) */}
       <nav className="hidden lg:flex items-center gap-4 text-xs font-semibold text-slate-600">
         <button
           type="button"
@@ -161,7 +175,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
             }
           >
             <Cloud className="w-3.5 h-3.5 text-current" />
-            <span className="hidden md:inline">
+            <span>
               {isGoogleSheetsConfigured() ? 'Google Sheets' : 'Conectar Sheets'}
             </span>
             {isGoogleSheetsConfigured() && (
@@ -172,15 +186,15 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
       </nav>
 
       {/* Acciones Principales con Menú Desplegable Basado en Strategy Pattern */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         <button
           type="button"
           onClick={onOpenEmailModal}
-          className="px-3.5 py-2 text-xs font-semibold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
+          className="p-2 sm:px-3.5 sm:py-2 text-xs font-semibold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
           title="Preparar correo listo para el cliente"
         >
           <Mail className="w-4 h-4 text-blue-800" />
-          <span className="hidden sm:inline">Enviar por Correo</span>
+          <span className="hidden md:inline">Enviar Correo</span>
         </button>
 
         {/* Grupo de Botón de Descarga con Dropdown de Estrategias */}
@@ -189,22 +203,23 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
             type="button"
             onClick={() => handleDownload(activeView)}
             disabled={isExporting}
-            className="px-4 sm:px-4.5 py-2 text-xs sm:text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-l-xl transition-all whitespace-nowrap flex items-center gap-2 disabled:opacity-60"
+            className="px-3 sm:px-4.5 py-2 text-xs sm:text-sm font-bold text-white bg-blue-900 hover:bg-blue-800 rounded-l-xl transition-all whitespace-nowrap flex items-center gap-1.5 sm:gap-2 disabled:opacity-60"
             title="Descargar documento PDF con el consecutivo asignado"
           >
             <Download className="w-4 h-4" />
-            <span>{getPrimaryLabel()}</span>
+            <span className="hidden sm:inline">{getPrimaryLabel()}</span>
+            <span className="sm:hidden">PDF</span>
           </button>
 
           <button
             type="button"
             onClick={() => setIsDropdownOpen((prev) => !prev)}
             disabled={isExporting}
-            className="px-2.5 py-2 text-white bg-blue-950 hover:bg-blue-900 border-l border-blue-800 rounded-r-xl transition-colors disabled:opacity-60 flex items-center justify-center"
+            className="px-2 sm:px-2.5 py-2 text-white bg-blue-950 hover:bg-blue-900 border-l border-blue-800 rounded-r-xl transition-colors disabled:opacity-60 flex items-center justify-center"
             title="Elegir modalidad de exportación (Junta, Separada en 1 Clic, Solo Cotización o Solo Carta)"
           >
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-150 ${
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform duration-150 ${
                 isDropdownOpen ? 'rotate-180' : ''
               }`}
             />
@@ -212,7 +227,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
 
           {/* Menú Desplegable con las 4 Estrategias de Exportación */}
           {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-left animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 max-w-[calc(100vw-20px)] bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-left animate-in fade-in zoom-in-95 duration-100">
               <div className="px-3.5 py-2 border-b border-slate-100 flex items-center justify-between">
                 <div>
                   <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -267,6 +282,88 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Botón de Menú Móvil / Tablet (< 1024px) */}
+        <div ref={mobileMenuRef} className="lg:hidden">
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors flex items-center justify-center shrink-0"
+            title="Opciones adicionales de cotización y nube"
+          >
+            {isMobileMenuOpen ? <X className="w-5 h-5 text-slate-900" /> : <Menu className="w-5 h-5 text-slate-700" />}
+          </button>
+
+          {/* Menú Desplegable Móvil */}
+          {isMobileMenuOpen && (
+            <div className="absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-xl p-4 z-40 animate-in slide-in-from-top-2 duration-150 space-y-3">
+              {/* Consecutivo y Estado Google Sheets */}
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-slate-500">Consecutivo N°:</span>
+                  <span className="text-sm font-mono font-bold text-blue-900 bg-white px-2.5 py-0.5 rounded-md border border-slate-200">
+                    {folioNumber}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onOpenSheetsModal?.();
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1.5 ${
+                    isGoogleSheetsConfigured()
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                  }`}
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>{isGoogleSheetsConfigured() ? 'Sheets Conectado' : 'Conectar Sheets'}</span>
+                  {isGoogleSheetsConfigured() && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+                </button>
+              </div>
+
+              {/* Botones de Acción */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onNewQuote();
+                  }}
+                  className="p-2.5 text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4 text-slate-500" />
+                  <span>Nueva Cotización</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onLoadSample();
+                  }}
+                  className="p-2.5 text-xs font-semibold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 flex items-center justify-center gap-2"
+                >
+                  <FileCheck className="w-4 h-4 text-blue-700" />
+                  <span>Cargar Ejemplo</span>
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onOpenEmailModal();
+                }}
+                className="w-full p-2.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 flex items-center justify-center gap-2"
+              >
+                <Mail className="w-4 h-4 text-blue-800" />
+                <span>Enviar por Correo / WhatsApp</span>
+              </button>
             </div>
           )}
         </div>

@@ -58,18 +58,18 @@ Correo: ${quote.contactEmail || 'mcobracivil@gmail.com'}`;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 font-poppins">
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] font-poppins">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150 font-poppins">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] font-poppins">
         
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950 font-poppins">
+        <div className="px-4 sm:px-5 py-3.5 sm:py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950 font-poppins">
           <div className="flex items-center gap-2.5 font-poppins">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-blue-600/20 text-blue-400 flex items-center justify-center shrink-0">
               <Mail className="w-4 h-4" />
             </div>
             <div className="font-poppins">
-              <h2 className="text-sm font-bold text-white font-poppins">Preparar Envío de Cotización</h2>
-              <p className="text-[11px] text-slate-400 font-poppins">
+              <h2 className="text-xs sm:text-sm font-bold text-white font-poppins">Preparar Envío de Cotización</h2>
+              <p className="text-[10px] sm:text-[11px] text-slate-400 font-poppins">
                 Plantilla de mensaje lista con los datos específicos del cliente
               </p>
             </div>
@@ -83,13 +83,14 @@ Correo: ${quote.contactEmail || 'mcobracivil@gmail.com'}`;
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 overflow-y-auto space-y-4 text-xs font-poppins">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 text-xs font-poppins">
           <div className="font-poppins">
             <label className="block text-[11px] font-semibold text-slate-300 mb-1 font-poppins">
               Correo del Destinatario (Cliente):
             </label>
             <input
               type="email"
+              inputMode="email"
               value={recipient}
               onChange={(e) => setRecipient(e.target.value)}
               placeholder="cliente@ejemplo.com"
@@ -125,39 +126,39 @@ Correo: ${quote.contactEmail || 'mcobracivil@gmail.com'}`;
             </div>
             <textarea
               readOnly
-              rows={9}
+              rows={6}
               value={emailBody}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-[11px] font-poppins text-slate-200 leading-relaxed outline-none resize-none selection:bg-blue-600"
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-[11px] font-poppins text-slate-200 leading-relaxed outline-none resize-none selection:bg-blue-600 sm:rows-9"
             />
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950 flex items-center justify-between gap-3 font-poppins">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-t border-slate-800 bg-slate-950 flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2.5 font-poppins">
           <a
             href={whatsappLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3.5 py-2 text-xs font-semibold text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 rounded-xl transition-colors flex items-center gap-1.5 font-poppins"
+            className="w-full sm:w-auto px-3.5 py-2 text-xs font-semibold text-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-800/60 rounded-xl transition-colors flex items-center justify-center gap-1.5 font-poppins"
           >
             <MessageSquare className="w-3.5 h-3.5" />
             <span className="font-poppins">Compartir por WhatsApp</span>
           </a>
 
-          <div className="flex items-center gap-2 font-poppins">
+          <div className="flex items-center gap-2 font-poppins w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-poppins"
+              className="flex-1 sm:flex-initial px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors font-poppins text-center"
             >
               Cerrar
             </button>
             <a
               href={mailtoLink}
-              className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow transition-colors flex items-center gap-1.5 font-poppins"
+              className="flex-1 sm:flex-initial px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 rounded-xl shadow transition-colors flex items-center justify-center gap-1.5 font-poppins text-center"
             >
               <Mail className="w-3.5 h-3.5" />
-              <span className="font-poppins">Abrir en Cliente de Correo</span>
+              <span className="font-poppins">Abrir en Correo</span>
             </a>
           </div>
         </div>

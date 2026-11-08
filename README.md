@@ -28,6 +28,11 @@ Estructurado en `src/modules/quote/services/export-strategies/` para ofrecer 4 m
 ### 5. Formateador Ortográfico y Preservación de Siglas
 * Utilidad `text-formatter.ts` con disparadores `onBlur` que estandariza mayúsculas iniciales (*Title Case*) preservando siglas empresariales colombianas (`S.A.S.`, `S.A.`, `LTDA`, `E.U.`, `NIT`, `C.C.`, `M&C`).
 
+### 6. Arquitectura Responsiva Omnicanal (Mobile, Tablet, Desktop & 4K)
+* **Selector Adaptativo de Modos (`< 1024px`):** En dispositivos móviles y tablets, permite alternar con un toque entre la **Consola de Obra** a pantalla completa y el visor de **Vista Previa & PDF**, manteniendo el modo dual simultáneo en computadoras de escritorio.
+* **Auto-Escalado Inteligente A4 (Fit-to-Screen):** Algoritmo dinámico que escala la hoja A4 (794px) para encajar con fidelidad milimétrica en cualquier ancho de celular (desde 320px) sin desbordamiento horizontal (`overflow-x`).
+* **Menú Móvil Desplegable y Teclados Nativos:** Acceso completo desde smartphones al Consecutivo N°, sincronización con Google Sheets e inputs optimizados con `inputMode="numeric"` para activación instantánea del teclado numérico.
+
 ---
 
 ## 🛠️ Stack Tecnológico

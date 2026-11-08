@@ -87,20 +87,20 @@ export const SheetsConfigModal: React.FC<SheetsConfigModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden flex flex-col animate-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150">
         
         {/* Cabecera del Modal */}
-        <div className="px-6 py-4 bg-[#234794] text-white flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 bg-[#234794] text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-white/10">
+            <div className="p-2 rounded-xl bg-white/10 shrink-0">
               <Cloud className="w-5 h-5 text-white" />
             </div>
             <div>
               <h3 className="font-bold text-sm sm:text-base tracking-wide font-poppins">
                 Sincronización con Google Sheets
               </h3>
-              <p className="text-[11px] text-blue-100 font-poppins">
+              <p className="text-[10px] sm:text-[11px] text-blue-100 font-poppins">
                 Base de datos en la nube sin costos ni apagado por inactividad
               </p>
             </div>
@@ -115,7 +115,7 @@ export const SheetsConfigModal: React.FC<SheetsConfigModalProps> = ({
         </div>
 
         {/* Contenido del Modal */}
-        <div className="p-6 space-y-4 text-xs font-poppins text-slate-700">
+        <div className="p-4 sm:p-6 space-y-4 text-xs font-poppins text-slate-700 overflow-y-auto flex-1">
           
           <div className="space-y-1.5">
             <label className="font-bold text-slate-800 text-xs block">
@@ -123,6 +123,7 @@ export const SheetsConfigModal: React.FC<SheetsConfigModalProps> = ({
             </label>
             <input
               type="url"
+              inputMode="url"
               placeholder="https://script.google.com/macros/s/.../exec"
               value={url}
               onChange={(e) => {
@@ -179,24 +180,24 @@ export const SheetsConfigModal: React.FC<SheetsConfigModalProps> = ({
         </div>
 
         {/* Botones de Acción */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <div className="px-4 sm:px-6 py-3 sm:py-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <button
             type="button"
             onClick={handleClear}
             disabled={!url}
-            className="px-3 py-2 text-rose-700 hover:bg-rose-50 rounded-xl font-semibold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-40"
+            className="w-full sm:w-auto justify-center px-3 py-2 text-rose-700 hover:bg-rose-50 rounded-xl font-semibold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-40"
             title="Borrar configuración y volver a modo local"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Desconectar</span>
           </button>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={handleTestConnection}
               disabled={isTesting || !url.trim()}
-              className="px-3.5 py-2 rounded-xl text-slate-700 hover:bg-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 border border-slate-300"
+              className="flex-1 sm:flex-initial justify-center px-3.5 py-2 rounded-xl text-slate-700 hover:bg-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 border border-slate-300"
             >
               {isTesting ? (
                 <>
@@ -211,7 +212,7 @@ export const SheetsConfigModal: React.FC<SheetsConfigModalProps> = ({
             <button
               type="button"
               onClick={handleSave}
-              className="px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
+              className="flex-1 sm:flex-initial justify-center px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-xl font-bold text-xs transition-colors flex items-center gap-1.5 shadow-xs"
             >
               <Save className="w-3.5 h-3.5" />
               <span>Guardar</span>

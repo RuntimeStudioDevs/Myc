@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { flushSync } from 'react-dom';
 import { useQuote } from './modules/quote/hooks/useQuote';
 import { useQuotePdf, ExportDocumentMode } from './modules/quote/hooks/useQuotePdf';
@@ -16,7 +16,7 @@ import {
   saveQuoteToGoogleSheets,
   fetchNextQuoteNumber,
 } from './modules/quote/services/google-sheets.service';
-import { Sliders } from 'lucide-react';
+import { Sliders, Eye } from 'lucide-react';
 
 export default function App() {
   const { quote, setQuote, loadSample, resetQuote } = useQuote();
@@ -28,11 +28,39 @@ export default function App() {
   const totalPages = pages.length;
 
   const [activeDocumentView, setActiveDocumentView] = useState<'both' | 'letter' | 'quote'>('both');
-  const [zoomScale, setZoomScale] = useState<number>(0.85);
+  const [mobileTab, setMobileTab] = useState<'editor' | 'preview'>('editor');
+
+  // Auto-cálculo de escala óptima para garantizar que la hoja A4 (794px) quepa sin desborde
+  const calculateOptimalZoom = () => {
+    if (typeof window === 'undefined') return 0.85;
+    const width = window.innerWidth;
+    if (width < 640) {
+      const available = width - 24;
+      return Math.max(0.35, Math.min(0.75, Number((available / 794).toFixed(2))));
+    }
+    if (width < 1024) {
+      const available = width - 48;
+      return Math.max(0.55, Math.min(0.9, Number((available / 794).toFixed(2))));
+    }
+    return 0.85;
+  };
+
+  const [zoomScale, setZoomScale] = useState<number>(() => calculateOptimalZoom());
   const [highlightEmpty, setHighlightEmpty] = useState<boolean>(true);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Escuchar redimensionamiento de pantalla para mantener escala óptima en móviles
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setZoomScale(calculateOptimalZoom());
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const showNotification = (msg: string) => {
     setNotification(msg);
@@ -47,6 +75,12 @@ export default function App() {
   const handleLoadSample = () => {
     const msg = loadSample();
     showNotification(msg);
+  };
+
+  const handleResetZoom = () => {
+    const optimal = calculateOptimalZoom();
+    setZoomScale(optimal);
+    showNotification(`Escala adaptada a la pantalla (${Math.round(optimal * 100)}%)`);
   };
 
   const handleDownloadPdf = async (mode?: ExportDocumentMode) => {
@@ -110,30 +144,85 @@ export default function App() {
       {/* Notificación Toast */}
       <Toast message={notification} />
 
-      {/* Espacio de Trabajo Principal: Dos Columnas Integradas */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Selector Segmentado de Modos en Móvil y Tablet (< 1024px) */}
+      <div className="lg:hidden bg-white border-b border-slate-200 px-3 py-2 flex items-center justify-center shrink-0 z-10 shadow-2xs">
+        <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200 w-full max-w-md">
+          <button
+            type="button"
+            onClick={() => setMobileTab('editor')}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              mobileTab === 'editor'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Editor de Obra</span>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                mobileTab === 'editor'
+                  ? 'bg-blue-800 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {quote.items.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setMobileTab('preview')}
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              mobileTab === 'preview'
+                ? 'bg-blue-900 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>Vista Previa & PDF</span>
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                mobileTab === 'preview'
+                  ? 'bg-blue-800 text-white'
+                  : 'bg-slate-200 text-slate-700'
+              }`}
+            >
+              {activeDocumentView === 'letter'
+                ? 1
+                : activeDocumentView === 'quote'
+                ? totalPages
+                : totalPages + 1}p
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Espacio de Trabajo Principal: Dos Columnas en Desktop (>= 1024px) o Pestañas en Móvil/Tablet (< 1024px) */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         {/* Columna Izquierda: Consola de Captura de Campos Ergonómica */}
         <aside
           id="left-panel"
-          className="w-full md:w-[500px] lg:w-[560px] xl:w-[620px] flex flex-col shrink-0 bg-slate-50 border-r border-slate-200 h-full overflow-hidden shadow-xs"
+          className={`w-full lg:w-[480px] xl:w-[540px] 2xl:w-[600px] flex-col shrink-0 bg-slate-50 border-r border-slate-200 h-full overflow-hidden shadow-xs ${
+            mobileTab === 'editor' ? 'flex' : 'hidden lg:flex'
+          }`}
         >
           {/* Encabezado del Panel de Captura */}
-          <div className="px-5 py-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-900 border border-blue-200 flex items-center justify-center font-bold">
+          <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-900 border border-blue-200 flex items-center justify-center font-bold shrink-0">
                 <Sliders className="w-4 h-4" />
               </div>
               <div>
                 <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
                   Consola de Captura de Obra
                 </h2>
-                <p className="text-[11px] text-slate-500 font-medium">
+                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
                   Modo claro con controles ergonómicos en 5 pasos
                 </p>
               </div>
             </div>
 
-            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
               {quote.items.length} {quote.items.length === 1 ? 'partida' : 'partidas'}
             </span>
           </div>
@@ -147,7 +236,9 @@ export default function App() {
         {/* Columna Derecha: Vista Previa Interactiva de Documentos */}
         <main
           id="main-viewport"
-          className="flex-1 flex flex-col bg-slate-200/50 h-full overflow-hidden relative"
+          className={`flex-1 flex-col bg-slate-200/50 h-full overflow-hidden relative ${
+            mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
+          }`}
         >
           {/* Barra de Herramientas con Selector Segmentado (Dossier / Carta / Cotización) */}
           <QuoteToolbar
@@ -157,16 +248,16 @@ export default function App() {
             activeView={activeDocumentView}
             onViewChange={setActiveDocumentView}
             onToggleHighlight={() => setHighlightEmpty(!highlightEmpty)}
-            onZoomIn={() => setZoomScale((z) => Math.min(1.2, z + 0.1))}
-            onZoomOut={() => setZoomScale((z) => Math.max(0.5, z - 0.1))}
-            onResetZoom={() => setZoomScale(0.85)}
+            onZoomIn={() => setZoomScale((z) => Math.min(1.2, Number((z + 0.1).toFixed(2))))}
+            onZoomOut={() => setZoomScale((z) => Math.max(0.35, Number((z - 0.1).toFixed(2))))}
+            onResetZoom={handleResetZoom}
             onPrint={printDocument}
           />
 
           {/* Visor con Scroll */}
           <div
             id="quote-viewport-scroll"
-            className="flex-1 overflow-auto p-8 flex items-start justify-center bg-slate-300/40 print:p-0 print:m-0 print:overflow-visible print:block print:bg-white print:w-[210mm]"
+            className="flex-1 overflow-auto p-3 sm:p-8 flex items-start justify-center bg-slate-300/40 print:p-0 print:m-0 print:overflow-visible print:block print:bg-white print:w-[210mm]"
           >
             <div
               id="quote-viewport-scale"
@@ -176,7 +267,7 @@ export default function App() {
               <div
                 ref={documentRef}
                 id="dossier-printable-container"
-                className="flex flex-col items-center gap-10 print:gap-0"
+                className="flex flex-col items-center gap-6 sm:gap-10 print:gap-0"
               >
                 {/* 1. Vista Cotización Canva Oficial */}
                 {(activeDocumentView === 'both' || activeDocumentView === 'quote') && (

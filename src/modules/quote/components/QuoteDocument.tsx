@@ -38,11 +38,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
       <div
         ref={ref}
         id="quote-document-printable"
-        style={{
-          transform: scale !== 1 ? `scale(${scale})` : undefined,
-          transformOrigin: 'top center',
-        }}
-        className="relative transition-transform duration-150 mx-auto select-none print:transform-none flex flex-col items-center gap-8 print:gap-0"
+        className="relative transition-all duration-150 mx-auto select-none print:transform-none flex flex-col items-center gap-6 sm:gap-8 print:gap-0"
       >
         {pages.map((page) => (
           <div
@@ -51,13 +47,29 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
           >
             {/* Indicador de hoja en pantalla (Oculto al imprimir y en PDF) */}
             {pages.length > 1 && (
-              <div className="mb-2.5 text-[11px] font-mono font-medium text-slate-400 bg-slate-900/80 px-3 py-0.5 rounded-full border border-slate-800 shadow-sm print:hidden">
+              <div className="mb-2 text-[11px] font-mono font-medium text-slate-400 bg-slate-900/80 px-3 py-0.5 rounded-full border border-slate-800 shadow-sm print:hidden">
                 Hoja {page.pageNumber} de {page.totalPages}
               </div>
             )}
 
-            {/* Marco estándar A4: 210mm x 297mm (794px x 1123px en pantalla, 296.5mm seguro en print) */}
-            <div className="quote-page quote-document-page w-[794px] h-[1123px] max-h-[1123px] print:w-[210mm] print:h-[296.5mm] print:max-h-[296.5mm] print:min-h-0 flex flex-col justify-between bg-white text-slate-800 font-poppins relative overflow-hidden shadow-2xl print:shadow-none print:m-0">
+            {/* Contenedor Adaptativo de Escala Fiel */}
+            <div
+              style={{
+                width: scale !== 1 ? `${Math.round(794 * scale)}px` : undefined,
+                height: scale !== 1 ? `${Math.round(1123 * scale)}px` : undefined,
+              }}
+              className="relative transition-all duration-150 print:w-[210mm] print:h-[296.5mm]"
+            >
+              {/* Marco estándar A4: 210mm x 297mm (794px x 1123px en pantalla, 296.5mm seguro en print) */}
+              <div
+                style={{
+                  width: '794px',
+                  height: '1123px',
+                  transform: scale !== 1 ? `scale(${scale})` : undefined,
+                  transformOrigin: 'top left',
+                }}
+                className="quote-page quote-document-page w-[794px] h-[1123px] max-h-[1123px] print:w-[210mm] print:h-[296.5mm] print:max-h-[296.5mm] print:min-h-0 flex flex-col justify-between bg-white text-slate-800 font-poppins relative overflow-hidden shadow-2xl print:shadow-none print:m-0 print:transform-none"
+              >
               
               {/* CUERPO SUPERIOR DE LA PÁGINA */}
               <div className="flex-1 flex flex-col font-poppins">
@@ -437,6 +449,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                 </div>
               </div>
 
+            </div>
             </div>
           </div>
         ))}
