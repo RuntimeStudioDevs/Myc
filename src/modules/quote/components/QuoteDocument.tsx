@@ -4,6 +4,7 @@ import { MCLogo } from '../../../shared/components/MCLogo';
 import { formatCurrency } from '../../../shared/utils/currency';
 import { calculateQuoteTotals } from '../services/quote-calculator';
 import { paginateQuoteItems } from '../services/quote-paginator';
+import { cleanSimpleDate } from '../services/google-sheets.service';
 import { Phone, Instagram, Mail } from 'lucide-react';
 
 interface QuoteDocumentProps {
@@ -111,13 +112,13 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
 
                           <span className="text-slate-200 font-poppins">Fecha:</span>
                           <span className="font-medium text-white tracking-wide font-poppins">
-                            {quote.date || new Date().toLocaleDateString('es-CO')}
+                            {cleanSimpleDate(quote.date)}
                           </span>
 
                           {(quote.fechaVigencia || quote.validityDays) && (
                             <>
                               <span className="text-slate-200 font-poppins">Validez:</span>
-                              <span className="font-medium text-white tracking-wide font-poppins">{quote.fechaVigencia || quote.validityDays}</span>
+                              <span className="font-medium text-white tracking-wide font-poppins">{cleanSimpleDate(quote.fechaVigencia || quote.validityDays)}</span>
                             </>
                           )}
                         </div>
@@ -150,8 +151,8 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                           <span className="font-bold text-white font-mono">{quote.code || 'C1'}-{quote.quoteNumber || '101'}</span>
                         </div>
                         <div className="text-[10px] text-slate-300">
-                          Fecha: {quote.date || new Date().toLocaleDateString('es-CO')}
-                          {(quote.fechaVigencia || quote.validityDays) ? ` | Validez: ${quote.fechaVigencia || quote.validityDays}` : ''}
+                          Fecha: {cleanSimpleDate(quote.date)}
+                          {(quote.fechaVigencia || quote.validityDays) ? ` | Validez: ${cleanSimpleDate(quote.fechaVigencia || quote.validityDays)}` : ''}
                         </div>
                       </div>
                     </div>

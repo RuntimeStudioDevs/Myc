@@ -6,14 +6,30 @@ import { QuoteToolbar } from './modules/quote/components/QuoteToolbar';
 import { QuickForm } from './modules/quote/components/QuickForm';
 import { QuoteDocument } from './modules/quote/components/QuoteDocument';
 import { PresentationLetterDocument } from './modules/quote/components/PresentationLetterDocument';
+import { QuoteRecoveryModal } from './modules/quote/components/QuoteRecoveryModal';
 import { Toast } from './shared/components/Toast';
 import { paginateQuoteItems } from './modules/quote/services/quote-paginator';
-import { saveQuoteToGoogleSheets } from './modules/quote/services/google-sheets.service';
+import {
+  saveQuoteToGoogleSheets,
+  updateQuoteInGoogleSheets,
+  getEmergencyDraft,
+} from './modules/quote/services/google-sheets.service';
+import { QuoteData } from './modules/quote/types/quote.types';
 import { Sliders, Eye } from 'lucide-react';
 
 export default function App() {
-  const { quote, setQuote, markAsFinalized, resetQuote } = useQuote();
+  const {
+    quote,
+    setQuote,
+    markAsFinalized,
+    resetQuote,
+    loadRecoveredQuote,
+    cloneAsNewQuote,
+    hasUnsavedChanges,
+  } = useQuote();
+
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
+  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState<boolean>(false);
   const documentRef = useRef<HTMLDivElement>(null);
   const vaultRef = useRef<HTMLDivElement>(null);
   const { isExporting, printDocument, downloadPdf } = useQuotePdf(documentRef, vaultRef);
@@ -54,6 +70,24 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Notificación de borrador de emergencia huérfano disponible al iniciar
+  useEffect(() => {
+    const draft = getEmergencyDraft();
+    if (draft && draft.quote) {
+      const isBlank =
+        !draft.quote.clientName?.trim() &&
+        !draft.quote.projectName?.trim() &&
+        draft.quote.items.length === 0;
+
+      if (!isBlank && !quote.clientName && !quote.projectName && quote.items.length === 0) {
+        const minutesAgo = Math.max(1, Math.round((Date.now() - draft.timestamp) / 60000));
+        showNotification(
+          `Borrador no guardado disponible (${draft.quote.code || 'C1'} N° ${draft.quote.quoteNumber}, hace ${minutesAgo}m). Abrí 'Recuperar' para cargarlo.`
+        );
+      }
+    }
+  }, []);
+
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3500);
@@ -65,7 +99,16 @@ export default function App() {
     showNotification(msg);
   };
 
+  const handleCloneQuote = async () => {
+    showNotification('Clonando cotización con nuevo consecutivo...');
+    const msg = await cloneAsNewQuote();
+    showNotification(msg);
+  };
 
+  const handleSelectRecoveredQuote = (recovered: QuoteData) => {
+    loadRecoveredQuote(recovered);
+    showNotification(`Cotización N° ${recovered.quoteNumber} cargada exitosamente para edición.`);
+  };
 
   const handleResetZoom = () => {
     const optimal = calculateOptimalZoom();
@@ -73,9 +116,9 @@ export default function App() {
     showNotification(`Escala adaptada a la pantalla (${Math.round(optimal * 100)}%)`);
   };
 
-  // Finalizar cotización: Valida duplicados y disponibilidad, y guarda en CotizacionesMYC
+  // Finalizar o Actualizar cotización en Google Sheets
   const handleFinalizeQuote = async (): Promise<boolean> => {
-        if (!quote.clientName || !quote.clientName.trim()) {
+    if (!quote.clientName || !quote.clientName.trim()) {
       showNotification('El Nombre del Cliente o Empresa es obligatorio (Paso 1).');
       return false;
     }
@@ -93,11 +136,19 @@ export default function App() {
     }
 
     setIsFinalizing(true);
-    showNotification('Validando y guardando cotización en Google Sheets...');
+    const isUpdating = Boolean(quote.isEditingExisting);
+
+    showNotification(
+      isUpdating
+        ? `Actualizando Cotización N° ${quote.quoteNumber} en Google Sheets...`
+        : 'Validando y guardando cotización en Google Sheets...'
+    );
 
     try {
-      // Guardar formalmente en Google Sheets (CotizacionesMYC) con candado y validación atómica
-      const saveRes = await saveQuoteToGoogleSheets(quote);
+      const saveRes = isUpdating
+        ? await updateQuoteInGoogleSheets(quote)
+        : await saveQuoteToGoogleSheets(quote);
+
       if (!saveRes.success) {
         showNotification(saveRes.error || 'No se pudo guardar la cotización.');
         setIsFinalizing(false);
@@ -106,7 +157,12 @@ export default function App() {
 
       const assignedNumber = saveRes.quoteNumber || quote.quoteNumber;
       markAsFinalized(assignedNumber);
-      showNotification(saveRes.message || `Cotización N° ${assignedNumber} finalizada con éxito.`);
+      showNotification(
+        saveRes.message ||
+          (isUpdating
+            ? `Cotización N° ${assignedNumber} actualizada exitosamente.`
+            : `Cotización N° ${assignedNumber} finalizada con éxito.`)
+      );
       return true;
     } catch (err: any) {
       console.error('Error al finalizar cotización:', err);
@@ -126,13 +182,22 @@ export default function App() {
 
   return (
     <div className="h-screen max-h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 flex flex-col font-sans select-none antialiased">
-      {/* Barra Superior Institucional con Menú Desplegable Basado en Strategy Pattern */}
+      {/* Barra Superior Institucional con Menú Desplegable y Botón de Recuperación */}
       <QuoteHeader
         quote={quote}
         isExporting={isExporting}
         activeView={activeDocumentView === 'both' ? 'joint' : activeDocumentView}
         onNewQuote={handleNewQuote}
         onDownloadPdf={handleDownloadPdf}
+        onOpenRecovery={() => setIsRecoveryModalOpen(true)}
+      />
+
+      {/* Modal de Búsqueda y Confirmación Emergente de Recuperación */}
+      <QuoteRecoveryModal
+        isOpen={isRecoveryModalOpen}
+        onClose={() => setIsRecoveryModalOpen(false)}
+        onSelectQuote={handleSelectRecoveredQuote}
+        currentQuoteHasChanges={hasUnsavedChanges}
       />
 
       {/* Notificación Toast */}
@@ -144,7 +209,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setMobileTab('editor')}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               mobileTab === 'editor'
                 ? 'bg-blue-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -166,7 +231,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => setMobileTab('preview')}
-            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+            className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               mobileTab === 'preview'
                 ? 'bg-blue-900 text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
@@ -207,6 +272,7 @@ export default function App() {
               onFinalizeQuote={handleFinalizeQuote}
               onDownloadQuote={() => handleDownloadPdf()}
               onNewQuote={handleNewQuote}
+              onCloneQuote={handleCloneQuote}
               isFinalizing={isFinalizing}
             />
           </div>
@@ -219,7 +285,7 @@ export default function App() {
             mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          {/* Barra de Herramientas con Selector Segmentado (Cotización Completa / Carta / Cotización) */}
+          {/* Barra de Herramientas con Selector Segmentado */}
           <QuoteToolbar
             zoomScale={zoomScale}
             highlightEmpty={highlightEmpty}
@@ -241,13 +307,13 @@ export default function App() {
               id="quote-viewport-scale"
               className="transition-all duration-150 ease-out print:transform-none print:m-0 print:p-0 print:block print:w-[210mm]"
             >
-              {/* Contenedor Imprimible y Capturable (Primero Cotización, debajo Carta de Presentación) */}
+              {/* Contenedor Imprimible y Capturable */}
               <div
                 ref={documentRef}
                 id="dossier-printable-container"
                 className="flex flex-col items-center gap-6 sm:gap-10 print:gap-0"
               >
-                {/* 1. Vista Cotización Canva Oficial */}
+                {/* 1. Vista Cotización */}
                 {(activeDocumentView === 'both' || activeDocumentView === 'quote') && (
                   <QuoteDocument
                     quote={quote}

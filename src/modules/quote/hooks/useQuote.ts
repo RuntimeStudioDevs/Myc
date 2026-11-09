@@ -7,6 +7,8 @@ import {
   getCachedCompanyConfig,
   isGoogleSheetsConfigured,
   calculateExpirationStatus,
+  saveEmergencyDraft,
+  clearEmergencyDraft,
 } from '../services/google-sheets.service';
 
 export const addDaysToDate = (days: number, baseDate?: Date): string => {
@@ -20,8 +22,8 @@ export const createInitialQuote = (config?: CompanyConfig): QuoteData => {
   const vigencia = addDaysToDate(30);
 
   return {
-    code: cfg.Codigo_Serie_Cotizacion || 'COT1',
-    letterCode: cfg.Codigo_Serie_CartaPresentacion || 'CTP1',
+    code: cfg.Codigo_Serie_Cotizacion || 'C1',
+    letterCode: cfg.Codigo_Serie_CartaPresentacion || 'CP 1',
     quoteNumber: '101',
     nit: cfg.Firma_NitEmpresa || '901795226-7',
     date: new Date().toLocaleDateString('es-CO'),
@@ -43,6 +45,7 @@ export const createInitialQuote = (config?: CompanyConfig): QuoteData => {
     statusCliente: 'Pendiente',
     statusVigencia: 'Activa',
     isFinalized: false,
+    isEditingExisting: false,
     notes: 'El pago se realiza de la siguiente manera el 50% al iniciar y el 50% restante al finalizar el trabajo.',
     representativeName: cfg.Firma_RepresentanteLegal || 'Ever Becerra',
     representativeRole: cfg.Firma_CargoInstitucional || 'Representante Legal',
@@ -68,6 +71,9 @@ export function useQuote(initialData?: QuoteData) {
         .then((res) => {
           if (isMounted && res.success) {
             setQuote((prev) => {
+              // Si ya estamos editando una existente, no sobreescribir el consecutivo cargado
+              if (prev.isEditingExisting) return prev;
+
               const updated = {
                 ...prev,
                 quoteNumber: res.nextQuoteNumber ? formatConsecutive(res.nextQuoteNumber) : prev.quoteNumber,
@@ -99,6 +105,16 @@ export function useQuote(initialData?: QuoteData) {
     };
   }, []);
 
+  // Resguardo automático de borrador en localStorage ante cierres accidentales (debounce de 500ms)
+  useEffect(() => {
+    if (quote.clientName.trim() || quote.projectName.trim() || quote.items.length > 0) {
+      const timer = setTimeout(() => {
+        saveEmergencyDraft(quote);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [quote]);
+
   const updateField = useCallback((field: keyof QuoteData, value: any) => {
     setQuote((prev) => {
       const updated = { ...prev, [field]: value };
@@ -124,7 +140,51 @@ export function useQuote(initialData?: QuoteData) {
       quoteNumber: savedNumber ? formatConsecutive(savedNumber) : prev.quoteNumber,
       isFinalized: true,
     }));
+    clearEmergencyDraft();
   }, []);
+
+  // Carga formal de una cotización recuperada de Sheets en modo edición
+  const loadRecoveredQuote = useCallback((recoveredQuote: QuoteData) => {
+    const synced = syncQuoteWithCalculations({
+      ...recoveredQuote,
+      isEditingExisting: true,
+      isFinalized: true,
+    });
+    setQuote(synced);
+    saveEmergencyDraft(synced);
+  }, []);
+
+  // Clonar cotización cargada asignándole un nuevo consecutivo (para no sobreescribir la original)
+  const cloneAsNewQuote = useCallback(async (): Promise<string> => {
+    setIsCloudSyncing(true);
+    let nextNum = '101';
+    if (isGoogleSheetsConfigured()) {
+      try {
+        const res = await fetchNextQuoteNumber();
+        if (res.success && res.nextQuoteNumber) {
+          nextNum = formatConsecutive(res.nextQuoteNumber);
+        }
+      } catch (e) {
+        console.warn('Error obteniendo consecutivo al clonar:', e);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    } else {
+      setIsCloudSyncing(false);
+      const currentClean = parseInt(String(quote.quoteNumber || '100').replace(/\D/g, ''), 10);
+      nextNum = formatConsecutive(isNaN(currentClean) || currentClean < 101 ? 101 : currentClean + 1);
+    }
+
+    setQuote((prev) => ({
+      ...prev,
+      quoteNumber: nextNum,
+      date: new Date().toLocaleDateString('es-CO'),
+      isEditingExisting: false,
+      isFinalized: false,
+    }));
+
+    return `Cotización clonada exitosamente con Consecutivo N° ${nextNum}`;
+  }, [quote.quoteNumber]);
 
   const resetQuote = useCallback(async (): Promise<string> => {
     setIsCloudSyncing(true);
@@ -149,6 +209,7 @@ export function useQuote(initialData?: QuoteData) {
       nextNum = formatConsecutive(isNaN(currentClean) || currentClean < 101 ? 101 : currentClean + 1);
     }
 
+    clearEmergencyDraft();
     const newQuote = createInitialQuote(freshConfig);
     newQuote.quoteNumber = nextNum;
     newQuote.date = new Date().toLocaleDateString('es-CO');
@@ -157,13 +218,20 @@ export function useQuote(initialData?: QuoteData) {
     return `Nueva cotización N° ${nextNum} iniciada`;
   }, [quote.quoteNumber]);
 
+  const hasUnsavedChanges = Boolean(
+    quote.clientName.trim() || quote.projectName.trim() || quote.items.length > 0
+  );
+
   return {
     quote,
     setQuote: setFullQuote,
     updateField,
     setQuoteNumber,
     markAsFinalized,
+    loadRecoveredQuote,
+    cloneAsNewQuote,
     resetQuote,
     isCloudSyncing,
+    hasUnsavedChanges,
   };
 }

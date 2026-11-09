@@ -16,6 +16,7 @@ import {
   Cloud,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
 import {
   isGoogleSheetsConfigured,
@@ -29,6 +30,7 @@ interface QuoteHeaderProps {
   activeView?: ExportDocumentMode;
   onNewQuote: () => void;
   onDownloadPdf: (mode?: ExportDocumentMode) => void;
+  onOpenRecovery?: () => void;
 }
 
 export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
@@ -37,6 +39,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
   activeView = 'joint',
   onNewQuote,
   onDownloadPdf,
+  onOpenRecovery,
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -66,12 +69,10 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
       }
     };
 
-    // Verificación diferida inicial (1.2s para priorizar renderizado del DOM)
     const initialTimer = setTimeout(() => {
       runHealthCheck();
     }, 1200);
 
-    // Verificación periódica cada 3 minutos en segundo plano
     const intervalTimer = setInterval(runHealthCheck, 180000);
 
     return () => {
@@ -150,7 +151,26 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
       </div>
 
       {/* Navegación Desktop (>= 1024px) */}
-      <nav className="hidden lg:flex items-center gap-4 text-xs font-semibold text-slate-600">
+      <nav className="hidden lg:flex items-center gap-3 text-xs font-semibold text-slate-600">
+        {quote.isEditingExisting && (
+          <div className="flex items-center gap-1.5 bg-amber-50 text-amber-900 border border-amber-300 px-2.5 py-1 rounded-lg text-xs font-bold">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            <span>Editando {quote.code || 'C1'} N° {quote.quoteNumber}</span>
+          </div>
+        )}
+
+        {onOpenRecovery && (
+          <button
+            type="button"
+            onClick={onOpenRecovery}
+            className="hover:text-blue-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer text-blue-700 font-bold"
+            title="Buscar y recuperar cotización previa desde Google Sheets"
+          >
+            <Search className="w-3.5 h-3.5 text-blue-600" />
+            Recuperar Cotización
+          </button>
+        )}
+
         <button
           type="button"
           onClick={onNewQuote}
@@ -164,7 +184,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
 
       {/* Acciones Principales */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {/* Indicador Automático de Google Sheets (Solo Nube y Color de Estado) */}
+        {/* Indicador Automático de Google Sheets */}
         <div
           className={`relative p-2 rounded-xl transition-all border flex items-center justify-center shrink-0 select-none ${
             sheetStatus === 'connected'
@@ -186,6 +206,18 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
             <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           )}
         </div>
+
+        {/* Botón Móvil de Recuperación (< 1024px) */}
+        {onOpenRecovery && (
+          <button
+            type="button"
+            onClick={onOpenRecovery}
+            className="lg:hidden p-2 rounded-xl text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            title="Recuperar cotización previa"
+          >
+            <Search className="w-4 h-4 text-blue-700" />
+          </button>
+        )}
 
         {/* Grupo de Botón de Descarga / Impresión con Dropdown de Estrategias */}
         <div ref={dropdownRef} className="relative inline-flex rounded-xl shadow-xs">
@@ -282,6 +314,27 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
           {/* Menú Desplegable Móvil */}
           {isMobileMenuOpen && (
             <div className="absolute top-full left-0 right-0 bg-white border-b border-slate-200 shadow-xl p-4 z-40 animate-in slide-in-from-top-2 duration-150 space-y-3">
+              {quote.isEditingExisting && (
+                <div className="p-2.5 bg-amber-50 text-amber-900 border border-amber-200 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span>Modo Edición: {quote.code || 'C1'} N° {quote.quoteNumber}</span>
+                </div>
+              )}
+
+              {onOpenRecovery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    onOpenRecovery();
+                  }}
+                  className="w-full p-2.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Search className="w-4 h-4 text-blue-600" />
+                  <span>Recuperar Cotización</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {

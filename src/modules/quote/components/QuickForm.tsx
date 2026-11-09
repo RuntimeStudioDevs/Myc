@@ -29,6 +29,7 @@ interface QuickFormProps {
   onFinalizeQuote: () => Promise<boolean>;
   onDownloadQuote: () => void;
   onNewQuote: () => void;
+  onCloneQuote?: () => void;
   isFinalizing?: boolean;
 }
 
@@ -38,6 +39,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({
   onFinalizeQuote,
   onDownloadQuote,
   onNewQuote,
+  onCloneQuote,
   isFinalizing = false,
 }) => {
   const [activeTab, setActiveTab] = useState<number>(1);
@@ -207,6 +209,28 @@ export const QuickForm: React.FC<QuickFormProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-slate-50 text-slate-800 select-text overflow-hidden min-h-0">
+      {/* BANNER INFORMATIVO CUANDO SE ESTÁ EDITANDO UNA COTIZACIÓN EXISTENTE */}
+      {quote.isEditingExisting && (
+        <div className="bg-amber-50 border-b border-amber-200 px-3.5 py-2 flex items-center justify-between text-xs text-amber-900 shrink-0">
+          <div className="flex items-center gap-2 truncate">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="truncate">
+              Modo Edición: <strong>{quote.code || 'C1'} N° {quote.quoteNumber}</strong> ({quote.clientName || 'Cliente'})
+            </span>
+          </div>
+          {onCloneQuote && (
+            <button
+              type="button"
+              onClick={onCloneQuote}
+              className="text-[11px] font-bold text-blue-900 bg-white hover:bg-amber-100/80 px-2.5 py-1 rounded-lg border border-amber-300 transition-colors shrink-0 cursor-pointer ml-2"
+              title="Crear una cotización nueva copiando estos datos con el siguiente consecutivo libre"
+            >
+              Guardar como Nueva
+            </button>
+          )}
+        </div>
+      )}
+
       {/* NAVEGADOR SEGMENTADO DE 3 PASOS ÁGILES */}
       <div className="p-2 sm:p-3 bg-white border-b border-slate-200 shrink-0 shadow-xs">
         <nav className="grid grid-cols-3 gap-1 sm:gap-2">
@@ -823,22 +847,22 @@ export const QuickForm: React.FC<QuickFormProps> = ({
             <span className="hidden xs:inline"> Paso</span>
             <ChevronRight className="w-4 h-4 shrink-0" />
           </button>
-        ) : !quote.isFinalized ? (
+        ) : !quote.isFinalized || quote.isEditingExisting ? (
           <button
             type="button"
             onClick={onFinalizeQuote}
             disabled={isFinalizing}
-            className="px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            className={`px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer ${quote.isEditingExisting ? 'bg-blue-900 hover:bg-blue-800' : 'bg-emerald-700 hover:bg-emerald-800'}`}
           >
             {isFinalizing ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Finalizando...</span>
+                <span>{quote.isEditingExisting ? 'Actualizando...' : 'Finalizando...'}</span>
               </>
             ) : (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                <span>Finalizar Cotización</span>
+                <span>{quote.isEditingExisting ? `Guardar Cambios (Actualizar N° ${quote.quoteNumber})` : 'Finalizar Cotización'}</span>
               </>
             )}
           </button>

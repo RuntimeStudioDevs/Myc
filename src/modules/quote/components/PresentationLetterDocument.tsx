@@ -7,7 +7,7 @@ import {
   formatDateToLongSpanish,
 } from '../../../shared/utils/currency';
 import { calculateQuoteTotals } from '../services/quote-calculator';
-import { getCachedCompanyConfig } from '../services/google-sheets.service';
+import { getCachedCompanyConfig, cleanSimpleDate } from '../services/google-sheets.service';
 import { Phone, Mail } from 'lucide-react';
 
 interface PresentationLetterDocumentProps {
@@ -51,7 +51,7 @@ export const PresentationLetterDocument = forwardRef<
 
   const longDate =
     quote.letterDateLong ||
-    formatDateToLongSpanish(quote.date, quote.letterCity || 'Medellín');
+    formatDateToLongSpanish(cleanSimpleDate(quote.date), quote.letterCity || 'Medellín');
 
   const totalInWords =
     totals.total > 0
@@ -115,7 +115,7 @@ export const PresentationLetterDocument = forwardRef<
                 <div className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 items-center justify-items-end font-poppins">
                   <span className="text-slate-200 font-poppins">Código:</span>
                   <span className="font-bold text-white tracking-wide font-poppins">
-                    {quote.letterCode || getCachedCompanyConfig().Codigo_Serie_CartaPresentacion || 'CTP1'}
+                    {quote.letterCode || getCachedCompanyConfig().Codigo_Serie_CartaPresentacion || 'CP 1'}
                   </span>
 
                   <span className="text-slate-200 font-poppins">N°</span>
@@ -136,7 +136,7 @@ export const PresentationLetterDocument = forwardRef<
 
                   <span className="text-slate-200 font-poppins">Fecha:</span>
                   <span className="font-medium text-white tracking-wide font-poppins">
-                    {quote.date || new Date().toLocaleDateString('es-CO')}
+                    {cleanSimpleDate(quote.date)}
                   </span>
                 </div>
               </div>

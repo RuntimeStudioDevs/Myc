@@ -58,6 +58,7 @@ export interface QuoteData {
   statusCliente: EstadoCotizacionCliente;
   statusVigencia: EstadoCotizacion;
   isFinalized?: boolean;
+  isEditingExisting?: boolean; // Verdadero cuando se recuperó de Sheets para editar in-place
 }
 
 export interface QuoteTotals {
@@ -85,4 +86,32 @@ export interface GoogleSheetsQuotePayload {
   fechaVigencia: string;
   startPct: number;
   endPct: number;
+  isUpdate?: boolean;
+}
+
+export interface QuoteSummaryItem {
+  quoteNumber: string;
+  code?: string;
+  clientName: string;
+  projectName: string;
+  location?: string;
+  date: string;
+  updatedAt?: string;
+  total: number;
+  statusCliente: EstadoCotizacionCliente;
+  statusVigencia: EstadoCotizacion;
+  fechaVigencia?: string;
+}
+
+export interface QuoteCatalogResult {
+  success: boolean;
+  catalog: QuoteSummaryItem[];
+  error?: string;
+}
+
+export interface FetchQuoteResult {
+  success: boolean;
+  quote?: QuoteData;
+  error?: string;
+  isLegacyFallback?: boolean;
 }

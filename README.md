@@ -10,28 +10,41 @@ Plataforma web de ingeniería para la gestión, cálculo, emisión formal y expo
 * **Cotización de Obra Civil:** Paginación automática A4 (`quote-paginator.ts`), desglose detallado de partidas simples y compuestas, cálculo de AIU (Administración, Imprevistos, Utilidad) e IVA sobre la utilidad según normativa tributaria colombiana.
 * **Carta de Presentación Epistolar:** Réplica milimétrica del diseño oficial en azul institucional (`#234794`), tipografía Poppins, paralelogramos decorativos en `-22deg`, membrete formal y conversión determinista del valor total a letras en pesos colombianos (`numberToWordsCOP`).
 
-### 2. Motor de Exportación Basado en Patrón Strategy
+### 2. Recuperación y Edición In-Place de Cotizaciones (CRUD Cloud)
+* **Búsqueda Instantánea a 0 ms:** Búsqueda reactiva en memoria por número de consecutivo, nombre de cliente o proyecto sobre el catálogo sincronizado de Google Sheets.
+* **Ventana Emergente de Confirmación:** Diálogo interactivo de seguridad que muestra la ficha técnica y financiera completa antes de rehidratar la cotización, alertando si existen cambios locales sin guardar.
+* **Reconstrucción 100% Fiel en Texto Plano:** Rehidrata todas las partidas, condiciones de pago y montos directamente desde las 14 columnas nativas de Google Sheets sin depender de JSON extras.
+* **Actualización Atómica In-Place:** Permite modificar precios, fechas y partidas, actualizando la fila existente en la hoja sin alterar el contador global de consecutivos (`isUpdate: true`).
+* **Clonación con 1 Clic:** Opción para duplicar cualquier cotización cargada asignándole un nuevo consecutivo libre.
+
+### 3. Códigos de Serie Oficiales y Fechas en Texto Plano Puro
+* **Códigos Dinámicos Corporativos:** Sincronizados directamente desde la pestaña `ConfiguracionMYC` de Google Sheets:
+  - Serie Oficial de Cotización: **`C1`** (ej. `C1 N° 102`).
+  - Serie Oficial de Carta de Presentación: **`CP 1`** (ej. `CP 1 N° 102`).
+* **Saneamiento Defensivo de Fechas:** Filtro estricto `cleanSimpleDate` que erradica cualquier residuo de zona horaria o formato largo (`GMT-0500 (hora estándar de Colombia)`), garantizando siempre el formato corto limpio `DD/MM/YYYY`.
+
+### 4. Motor de Exportación Basado en Patrón Strategy
 Estructurado en `src/modules/quote/services/export-strategies/` para ofrecer 4 modalidades de entrega en PDF de alta fidelidad:
 * **Dossier Completo (1 solo PDF):** Une la cotización y la carta en un documento corporativo continuo (`MYC_CC[N°].pdf`).
 * **Ambos como Archivos Separados (1 Clic):** Genera y descarga de forma secuencial `Cotizacion_[N°].pdf` y `Carta_de_Presentacion_[N°].pdf` con pausa asíncrona protectora.
 * **Solo Cotización:** Descarga exclusivamente las hojas técnicas de presupuesto (`Cotizacion_[N°].pdf`).
 * **Solo Carta de Presentación:** Descarga exclusivamente la propuesta epistolar formal (`Carta_de_Presentacion_[N°].pdf`).
 
-### 3. Base de Datos en la Nube con Google Sheets (Cero Apagado por Inactividad)
+### 5. Base de Datos en la Nube con Google Sheets (Cero Apagado por Inactividad)
 * **Persistencia permanente sin costo ($0 USD):** A diferencia de servicios SQL tradicionales que se suspenden tras 7 o 15 días de inactividad comercial, Google Sheets **nunca se apaga ni se duerme**.
-* **Consecutivo Único Atómico (101+):** Gestionado mediante `LockService.getScriptLock()` en Google Apps Script (`google-apps-script/Code.gs`), evitando colisiones de números entre usuarios concurrentes.
-* **Registro de Prospectos:** Almacena en tiempo real los datos del cliente, proyecto, ubicación, montos, anticipos y una columna de **Estado** (*Enviada*, *Aprobada*, *Rechazada*) accesible para la gerencia desde el celular.
+* **Consecutivo Único Atómico (101+):** Gestionado mediante `LockService.getScriptLock()` en Google Apps Script (`google-apps-script/DataBase_Services.gs`), evitando colisiones de números entre usuarios concurrentes.
+* **Registro de Prospectos:** Almacena en tiempo real los datos del cliente, proyecto, ubicación, montos, anticipos y una columna de **Estado** (*Pendiente*, *Confirmada*, *Rechazada*) accesible para la gerencia desde el celular.
 
-### 4. Normalizador de Espacios de Color Acelerado por Hardware
+### 6. Normalizador de Espacios de Color Acelerado por Hardware
 * Módulo especializado (`html2canvas-color-shim.ts`) que resuelve la incompatibilidad entre **Tailwind CSS v4** (que compila en `oklch` y `oklab`) y los analizadores tradicionales de canvas, convirtiendo colores en tiempo real (< 1 ms) a sRGB estándar.
 
-### 5. Formateador Ortográfico y Preservación de Siglas
+### 7. Formateador Ortográfico y Preservación de Siglas
 * Utilidad `text-formatter.ts` con disparadores `onBlur` que estandariza mayúsculas iniciales (*Title Case*) preservando siglas empresariales colombianas (`S.A.S.`, `S.A.`, `LTDA`, `E.U.`, `NIT`, `C.C.`, `M&C`).
 
-### 6. Arquitectura Responsiva Omnicanal (Mobile, Tablet, Desktop & 4K)
+### 8. Arquitectura Responsiva Omnicanal (Mobile, Tablet, Desktop & 4K)
 * **Selector Adaptativo de Modos (`< 1024px`):** En dispositivos móviles y tablets, permite alternar con un toque entre la **Consola de Obra** a pantalla completa y el visor de **Vista Previa & PDF**, manteniendo el modo dual simultáneo en computadoras de escritorio.
 * **Auto-Escalado Inteligente A4 (Fit-to-Screen):** Algoritmo dinámico que escala la hoja A4 (794px) para encajar con fidelidad milimétrica en cualquier ancho de celular (desde 320px) sin desbordamiento horizontal (`overflow-x`).
-* **Menú Móvil Desplegable y Teclados Nativos:** Acceso completo desde smartphones al Consecutivo N°, sincronización con Google Sheets e inputs optimizados con `inputMode="numeric"` para activación instantánea del teclado numérico.
+* **Menú Móvil Desplegable y Teclados Nativos:** Acceso completo desde smartphones al Consecutivo N°, buscador de recuperación, sincronización con Google Sheets e inputs optimizados con `inputMode="numeric"`.
 
 ---
 
@@ -62,7 +75,7 @@ MYC/
 │   └── GOOGLE_SHEETS_SETUP.md                # Manual para configurar la base de datos en Sheets
 │
 ├── google-apps-script/                       # Backend en la nube de Google Drive
-│   └── Code.gs                               # Webhook con LockService para asignación de consecutivos
+│   └── DataBase_Services.gs                  # Webhook con LockService, CRUD in-place y configuración corporativa
 │
 ├── public/                                   # Assets estáticos servidos en producción
 │   ├── logo-myc.png                          # Logo institucional optimizado
@@ -76,21 +89,21 @@ MYC/
 ├── src/                                      # Código fuente modular de React 19
 │   ├── modules/
 │   │   ├── quote/                            # Dominio principal de cotizaciones
-│   │   │   ├── components/                   # QuickForm, QuoteDocument, PresentationLetterDocument...
+│   │   │   ├── components/                   # QuickForm, QuoteDocument, QuoteRecoveryModal...
 │   │   │   ├── hooks/                        # useQuote, useQuotePdf
-│   │   │   └── services/                     # quote-calculator, quote-paginator, export-strategies...
+│   │   │   └── services/                     # quote-calculator, google-sheets.service, export-strategies...
 │   │   └── mailer/                           # Dominio de correos y WhatsApp (EmailModal)
 │   │
 │   ├── shared/                               # Componentes y utilidades transversales
 │   │   ├── components/                       # MCLogo, Toast
 │   │   └── utils/                            # currency, text-formatter, html2canvas-color-shim
 │   │
-│   ├── App.tsx                               # Orquestador visual
+│   ├── App.tsx                               # Orquestador visual con buscador y alertas de borrador
 │   ├── main.tsx                              # Punto de entrada React
 │   └── index.css                             # Tailwind CSS v4 y reglas @media print
 │
 ├── .env.example                              # Plantilla de variables de entorno
-├── package.json                              # Dependencias y scripts npm
+├── package.json                              # Versión 0.4.0 y dependencias
 └── tsconfig.json                             # Configuración estricta TypeScript
 ```
 
@@ -105,25 +118,30 @@ MYC/
 ### Pasos
 1. **Clonar e instalar dependencias:**
    ```bash
-   git clone <URL_DEL_REPOSITORIO>
+   git clone https://github.com/RuntimeStudioDevs/Myc.git
    cd MYC
    npm install
    ```
 
 2. **Configurar variables de entorno:**
-   Copia el archivo `.env.example` como `.env`:
+   Copiá el archivo `.env.example` como `.env`:
    ```bash
    cp .env.example .env
    ```
-   *(Opcional: Si ya tienes tu Google Sheets configurado, agrega la URL en `VITE_GOOGLE_SHEETS_WEBHOOK_URL`).*
+   *(Opcional: Si ya tenés tu Google Sheets configurado, agregá la URL en `VITE_GOOGLE_SHEETS_WEBHOOK_URL`).*
 
 3. **Iniciar en modo desarrollo:**
    ```bash
    npm run dev
    ```
-   Abre tu navegador en: **`http://localhost:3000`**
+   Abrí tu navegador en: **`http://localhost:3000`**
 
-4. **Verificar tipado y compilar para producción:**
+4. **Ejecutar pruebas unitarias:**
+   ```bash
+   npm run test
+   ```
+
+5. **Verificar tipado y compilar para producción:**
    ```bash
    npm run lint
    npm run build
@@ -133,7 +151,7 @@ MYC/
 
 ## 📚 Documentación Adicional
 
-Para más detalles operativos y técnicos, consulta los manuales dedicados:
+Para más detalles operativos y técnicos, consultá los manuales dedicados:
 * 🏛️ [Arquitectura Técnica y Patrones de Diseño](./docs/ARQUITECTURA.md)
 * 🚀 [Guía de Despliegue en Vercel](./docs/GUIA_DESPLIEGUE_VERCEL.md)
 * 📊 [Manual de Configuración de Google Sheets](./docs/GOOGLE_SHEETS_SETUP.md)
