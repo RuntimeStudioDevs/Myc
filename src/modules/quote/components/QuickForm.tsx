@@ -1,35 +1,48 @@
 import React, { useState } from 'react';
-import { QuoteData, QuoteItem } from '../types/quote.types';
+import { QuoteData, QuoteItem, PricingMode } from '../types/quote.types';
 import { calculateQuoteTotals } from '../services/quote-calculator';
 import { toProperCase, toSentenceCase, cleanWhitespace } from '../../../shared/utils/text-formatter';
+import { formatCurrency, formatCOPInput } from '../../../shared/utils/currency';
 import {
-  FileText,
   User,
   Building,
   Percent,
   Plus,
   Trash2,
   Calendar,
-  Phone,
-  Mail,
   MapPin,
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
   ChevronLeft,
-  Briefcase,
-  Instagram,
-  Hash,
+  Download,
+  RotateCcw,
+  Loader2,
+  Clock,
+  DollarSign,
+  Calculator,
 } from 'lucide-react';
 
 interface QuickFormProps {
   quote: QuoteData;
   onChange: (updated: QuoteData) => void;
+  onFinalizeQuote: () => Promise<boolean>;
+  onDownloadQuote: () => void;
+  onNewQuote: () => void;
+  isFinalizing?: boolean;
 }
 
-export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
+export const QuickForm: React.FC<QuickFormProps> = ({
+  quote,
+  onChange,
+  onFinalizeQuote,
+  onDownloadQuote,
+  onNewQuote,
+  isFinalizing = false,
+}) => {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [taskCreationMode, setTaskCreationMode] = useState<'simple' | 'detailed'>('simple');
+  const [attemptedStep1, setAttemptedStep1] = useState<boolean>(false);
 
   const updateField = (field: keyof QuoteData, value: any) => {
     const updated = { ...quote, [field]: value };
@@ -45,6 +58,10 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
     updated.subtotal = newTotals.subtotal;
     updated.total = newTotals.total;
     onChange(updated);
+  };
+
+  const setPricingMode = (mode: PricingMode) => {
+    updateMultipleFields({ pricingMode: mode });
   };
 
   const handlePresetPercentages = (start: number, end: number) => {
@@ -98,7 +115,11 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
       }
     }
     baseDate.setDate(baseDate.getDate() + days);
-    updateField('validityDays', baseDate.toLocaleDateString('es-CO'));
+    const newDateStr = baseDate.toLocaleDateString('es-CO');
+    updateMultipleFields({
+      fechaVigencia: newDateStr,
+      validityDays: newDateStr,
+    });
   };
 
   const addItem = () => {
@@ -132,6 +153,16 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
     updateField('items', newItems);
   };
 
+  const updateItemSubtotal = (id: string, subtotal: number) => {
+    const newItems = quote.items.map((item) => {
+      if (item.id === id) {
+        return { ...item, subtotal };
+      }
+      return item;
+    });
+    updateField('items', newItems);
+  };
+
   const toggleItemMode = (id: string) => {
     const newItems = quote.items.map((item) => {
       if (item.id === id) {
@@ -153,46 +184,57 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
     updateField('items', newItems);
   };
 
+    const isClientValid = Boolean(quote.clientName && quote.clientName.trim());
+  const isProjectValid = Boolean(quote.projectName && quote.projectName.trim());
+  const isLocationValid = Boolean(quote.location && quote.location.trim());
+  const isStep1Valid = isClientValid && isProjectValid && isLocationValid;
+
   const paymentSum = Number(quote.startPct || 0) + Number(quote.endPct || 0);
   const isPaymentValid = paymentSum === 100;
 
+  const currentPricingMode: PricingMode = quote.pricingMode || 'tasks';
+  const totalAmount = parseFloat(String(quote.total)) || 0;
+  const subtotalAmount = parseFloat(String(quote.subtotal)) || 0;
+  const startPct = parseFloat(String(quote.startPct)) || 50;
+  const anticipoDinero = Math.round(totalAmount * (startPct / 100));
+  const saldoDinero = totalAmount - anticipoDinero;
+
   const tabs = [
-    { id: 1, label: 'Documento', icon: FileText, num: '1' },
-    { id: 2, label: 'Cliente y Obra', icon: User, num: '2' },
-    { id: 3, label: 'Tareas de Obra', icon: Building, num: '3', badge: quote.items.length },
-    { id: 4, label: 'Forma de Pago', icon: Percent, num: '4', valid: isPaymentValid },
-    { id: 5, label: 'Firma y Empresa', icon: Briefcase, num: '5' },
+    { id: 1, label: 'Cliente y Proyecto', icon: User, num: '1', valid: isStep1Valid },
+    { id: 2, label: 'Tareas del Proyecto', icon: Building, num: '2', badge: quote.items.length },
+    { id: 3, label: 'Pagos y Tiempos', icon: Percent, num: '3', valid: isPaymentValid },
   ];
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 text-slate-800 select-text">
-      {/* NAVEGADOR SEGMENTADO DE 5 PASOS */}
+    <div className="h-full flex flex-col bg-slate-50 text-slate-800 select-text overflow-hidden min-h-0">
+      {/* NAVEGADOR SEGMENTADO DE 3 PASOS ÁGILES */}
       <div className="p-2 sm:p-3 bg-white border-b border-slate-200 shrink-0 shadow-xs">
-        <nav className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <nav className="grid grid-cols-3 gap-1 sm:gap-2">
           {tabs.map((tab) => {
+            const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`px-2.5 sm:px-3 py-2 min-h-[38px] rounded-xl text-xs font-bold flex items-center gap-1.5 sm:gap-2 transition-all whitespace-nowrap shrink-0 border ${
+                onClick={() => {
+                  if (activeTab === 1 && tab.id > 1 && !isStep1Valid) {
+                    setAttemptedStep1(true);
+                    return;
+                  }
+                  setActiveTab(tab.id);
+                }}
+                className={`py-2 px-2 sm:px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1.5 sm:gap-2 cursor-pointer ${
                   isActive
-                    ? 'bg-blue-900 text-white border-blue-900 shadow-sm'
-                    : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                    ? 'bg-blue-900 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <span
-                  className={`w-5 h-5 rounded-full text-[11px] flex items-center justify-center font-bold ${
-                    isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {tab.num}
-                </span>
-                <span>{tab.label}</span>
-                {tab.badge !== undefined && (
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+                <span className="truncate">{tab.label}</span>
+                {typeof tab.badge === 'number' && tab.badge > 0 && (
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
                       isActive ? 'bg-blue-800 text-white' : 'bg-slate-100 text-slate-600 border border-slate-300'
                     }`}
                   >
@@ -208,611 +250,532 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
       {/* ÁREA DE CONTENIDO DE CADA PASO */}
       <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
         
-        {/* ================= PASO 1: DATOS DEL DOCUMENTO ================= */}
+        {/* ================= PASO 1: CLIENTE Y OBRA ================= */}
         {activeTab === 1 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
             <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-blue-900" />
-                  Datos y Consecutivo del Documento
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Identificación oficial, folio correlativo y vigencia de precios de la cotización.
-                </p>
-              </div>
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
-                Paso 1 de 5
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Código de Serie
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.code}
-                    onChange={(e) => updateField('code', e.target.value)}
-                    className="w-full h-12 px-4 text-base font-mono font-semibold bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                    placeholder="C1"
-                  />
-                  <Hash className="w-4 h-4 text-slate-400 absolute right-3.5 top-4 pointer-events-none" />
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Prefijo de la serie documental.</span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  N° Consecutivo
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={quote.quoteNumber}
-                    onChange={(e) => updateField('quoteNumber', e.target.value)}
-                    placeholder="111"
-                    className="w-full h-12 px-4 text-base font-mono font-bold text-blue-900 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all"
-                  />
-                  <span className="text-[11px] font-bold text-blue-700 absolute right-3.5 top-4">OFICIAL</span>
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Número consecutivo correlativo.</span>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Fecha de Emisión
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.date}
-                    onChange={(e) => updateField('date', e.target.value)}
-                    placeholder="DD/MM/AAAA"
-                    className="w-full h-12 px-4 text-base font-mono font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                  />
-                  <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-4 pointer-events-none" />
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Fecha visible en el encabezado impreso.</span>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-semibold text-slate-800">
-                    Vigencia de la Oferta
-                  </label>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleAddDaysValidity(15)}
-                      className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors"
-                      title="Fijar fecha a 15 días desde la fecha de emisión"
-                    >
-                      +15d
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleAddDaysValidity(30)}
-                      className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition-colors"
-                      title="Fijar fecha a 30 días desde la fecha de emisión"
-                    >
-                      +30d
-                    </button>
-                  </div>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.validityDays || ''}
-                    onChange={(e) => updateField('validityDays', e.target.value)}
-                    placeholder="DD/MM/AAAA"
-                    className="w-full h-12 px-4 text-base font-mono font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                  />
-                  <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-4 pointer-events-none" />
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">Fecha límite de validez de la oferta (DD/MM/AAAA).</span>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Ciudad de la Carta de Presentación
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.letterCity || ''}
-                    onChange={(e) => updateField('letterCity', e.target.value)}
-                    onBlur={() => updateField('letterCity', toProperCase(quote.letterCity))}
-                    placeholder="Medellín"
-                    className="w-full h-12 px-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                  />
-                  <MapPin className="w-4 h-4 text-slate-400 absolute right-3.5 top-4 pointer-events-none" />
-                </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Ciudad que encabeza la fecha formal epistolar (ej: Medellín, 27 de Octubre de 2026).
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ================= PASO 2: CLIENTE Y UBICACIÓN ================= */}
-        {activeTab === 2 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
-            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                   <User className="w-5 h-5 text-blue-900" />
-                  Cliente y Ubicación de la Obra
+                  Informacion del cliente y proyecto
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Datos de la persona o entidad contratante y localización física de los trabajos.
-                </p>
               </div>
               <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
-                Paso 2 de 5
+                Paso 1 de 3
               </span>
             </div>
 
             <div className="space-y-4">
+              {/* Nombre del Cliente o Empresa */}
               <div>
-                <label className="block text-sm sm:text-base font-semibold text-slate-800 mb-1.5">
-                  Nombre o Razón Social del Cliente <span className="text-blue-600 font-bold">*</span>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Nombre del Cliente o Empresa <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={quote.clientName}
-                  onChange={(e) => updateField('clientName', e.target.value)}
-                  onBlur={() => updateField('clientName', toProperCase(quote.clientName))}
-                  placeholder="Ej: Constructora Bolívar S.A. o Mateo Palacios"
-                  className="w-full h-12 px-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Reemplaza la variable (CLIENTE) en la plantilla Canva.
-                </span>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={quote.clientName}
+                    onChange={(e) => updateField('clientName', e.target.value)}
+                    onBlur={() => updateField('clientName', toProperCase(cleanWhitespace(quote.clientName)))}
+                    placeholder="Ej: Constructora Bolívar S.A.S."
+                    className={`w-full h-12 pl-11 pr-4 text-base font-medium rounded-xl outline-none text-slate-900 border transition-all ${
+                      attemptedStep1 && !isClientValid
+                        ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600'
+                        : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-blue-700'
+                    }`}
+                  />
+                  <User className={`w-4 h-4 absolute left-3.5 top-4 pointer-events-none ${
+                    attemptedStep1 && !isClientValid ? 'text-rose-400' : 'text-slate-400'
+                  }`} />
+                </div>
+                {attemptedStep1 && !isClientValid && (
+                  <p className="text-xs text-rose-600 font-semibold flex items-center gap-1 mt-1.5 animate-in fade-in duration-150">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>El nombre del cliente o empresa es obligatorio.</span>
+                  </p>
+                )}
               </div>
 
+              {/* Nombre de la Obra o Proyecto */}
               <div>
-                <label className="block text-sm sm:text-base font-semibold text-slate-800 mb-1.5">
-                  Nombre del Proyecto u Obra <span className="text-blue-600 font-bold">*</span>
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Nombre de la Obra o Proyecto <span className="text-rose-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  value={quote.projectName}
-                  onChange={(e) => updateField('projectName', e.target.value)}
-                  onBlur={() => updateField('projectName', toProperCase(quote.projectName))}
-                  placeholder="Ej: Adecuación y pintura de fachada Edificio Central"
-                  className="w-full h-12 px-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
-                />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Reemplaza la variable (PROYECTO) en la plantilla Canva.
-                </span>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={quote.projectName}
+                    onChange={(e) => updateField('projectName', e.target.value)}
+                    onBlur={() => updateField('projectName', toProperCase(cleanWhitespace(quote.projectName)))}
+                    placeholder="Ej: Adecuación y Acabados Arquitectónicos"
+                    className={`w-full h-12 pl-11 pr-4 text-base font-medium rounded-xl outline-none text-slate-900 border transition-all ${
+                      attemptedStep1 && !isProjectValid
+                        ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600'
+                        : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-blue-700'
+                    }`}
+                  />
+                  <Building className={`w-4 h-4 absolute left-3.5 top-4 pointer-events-none ${
+                    attemptedStep1 && !isProjectValid ? 'text-rose-400' : 'text-slate-400'
+                  }`} />
+                </div>
+                {attemptedStep1 && !isProjectValid && (
+                  <p className="text-xs text-rose-600 font-semibold flex items-center gap-1 mt-1.5 animate-in fade-in duration-150">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>El nombre de la obra o proyecto es obligatorio.</span>
+                  </p>
+                )}
               </div>
 
+              {/* Ubicación de la Obra */}
               <div>
-                <label className="block text-sm sm:text-base font-semibold text-slate-800 mb-1.5">
-                  Ubicación de la Obra (Dirección o Predio)
+                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
+                  Ubicación de la Obra <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={quote.location || ''}
                     onChange={(e) => updateField('location', e.target.value)}
-                    onBlur={() => updateField('location', toProperCase(quote.location))}
-                    placeholder="Ej: Bogotá D.C. - Carrera 7 # 120-10"
-                    className="w-full h-12 pl-11 pr-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none transition-all text-slate-900"
+                    onBlur={() => updateField('location', toProperCase(cleanWhitespace(quote.location || '')))}
+                    placeholder="Ej: Medellín - Carrera 43A # 1-50"
+                    className={`w-full h-12 pl-11 pr-4 text-base font-medium rounded-xl outline-none text-slate-900 border transition-all ${
+                      attemptedStep1 && !isLocationValid
+                        ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600'
+                        : 'bg-slate-50 border-slate-300 focus:bg-white focus:border-blue-700'
+                    }`}
                   />
-                  <MapPin className="w-5 h-5 text-blue-700 absolute left-3.5 top-3.5 pointer-events-none" />
+                  <MapPin className={`w-4 h-4 absolute left-3.5 top-4 pointer-events-none ${
+                    attemptedStep1 && !isLocationValid ? 'text-rose-400' : 'text-slate-400'
+                  }`} />
                 </div>
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Se visualiza en la tarjeta de localización del encabezado.
-                </span>
+                {attemptedStep1 && !isLocationValid && (
+                  <p className="text-xs text-rose-600 font-semibold flex items-center gap-1 mt-1.5 animate-in fade-in duration-150">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>La ubicación de la obra es obligatoria.</span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* ================= PASO 3: TAREAS DE OBRA CIVIL ================= */}
-        {activeTab === 3 && (
+        {/* ================= PASO 2: TAREAS DE OBRA Y VALORES ================= */}
+        {activeTab === 2 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Building className="w-5 h-5 text-blue-900" />
-                  Tareas de Obra Civil y Subtotal
+                  Tareas del proyecto
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Define las actividades contratadas y el valor subtotal único de obra civil.
-                </p>
               </div>
+              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
+                Paso 2 de 3
+              </span>
+            </div>
 
-              {/* Botones de Modalidad y Agregar Tarea */}
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => setTaskCreationMode('simple')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      taskCreationMode === 'simple'
-                        ? 'bg-white text-blue-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                    title="Crear actividades sencillas de un solo campo"
-                  >
-                    📋 Actividad
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTaskCreationMode('detailed')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      taskCreationMode === 'detailed'
-                        ? 'bg-white text-blue-900 shadow-xs'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                    title="Crear actividades con título y descripción técnica"
-                  >
-                    📝 Con descripción
-                  </button>
-                </div>
+            {/* SELECTOR DE MODALIDAD DE PRESUPUESTO */}
+            <div className="p-3.5 bg-slate-100/80 rounded-2xl border border-slate-200 space-y-2.5">
+              <span className="text-xs font-bold text-slate-800 uppercase tracking-wide block">
+                Modalidad de Presupuestación:
+              </span>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPricingMode('tasks')}
+                  className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                    currentPricingMode === 'tasks'
+                      ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Calculator className="w-4 h-4" />
+                  <span>Por Tarea (Suma de Tareas)</span>
+                </button>
 
                 <button
                   type="button"
-                  onClick={addItem}
-                  className="px-4 py-2 text-xs sm:text-sm font-bold bg-blue-900 hover:bg-blue-800 text-white rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+                  onClick={() => setPricingMode('global')}
+                  className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 border cursor-pointer ${
+                    currentPricingMode === 'global'
+                      ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Agregar Tarea</span>
+                  <DollarSign className="w-4 h-4" />
+                  <span>Valor Global Total</span>
                 </button>
               </div>
             </div>
 
-            {/* LISTA DE TAREAS */}
-            {quote.items.length === 0 ? (
-              <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-2xl text-slate-500 space-y-2">
-                <Building className="w-8 h-8 mx-auto text-slate-400 stroke-[1.5]" />
-                <p className="text-sm font-semibold text-slate-700">No hay tareas de obra registradas</p>
-                <p className="text-xs text-slate-400">Haz clic en &quot;Agregar Tarea&quot; para registrar la primera partida.</p>
+            {/* CAMPO DE VALOR GLOBAL TOTAL (SI APLICA MODO GLOBAL) */}
+            {currentPricingMode === 'global' && (
+              <div className="p-4 bg-blue-50/70 border-2 border-blue-200 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-blue-950 flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-blue-900" />
+                    Valor Total del Proyecto <span className="text-rose-500">*</span>
+                  </label>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={subtotalAmount === 0 ? '' : formatCOPInput(subtotalAmount)}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      const val = digits ? parseInt(digits, 10) : 0;
+                      updateMultipleFields({
+                        pricingMode: 'global',
+                        subtotal: val,
+                      });
+                    }}
+                    placeholder="0"
+                    className="w-full h-12 pl-11 pr-4 text-lg font-mono font-bold bg-white border border-blue-300 rounded-xl focus:border-blue-700 outline-none text-slate-900"
+                  />
+                  <DollarSign className="w-5 h-5 text-blue-700 absolute left-3.5 top-3.5 pointer-events-none" />
+                </div>
+                <p className="text-xs text-blue-700">
+                  El contrato se cotiza a suma global.
+                </p>
               </div>
-            ) : (
-              <div className="space-y-3.5">
-                {quote.items.map((item, index) => {
+            )}
+
+            {/* Selector de Modo de Partida (Simple o Compuesta) */}
+            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-xs font-semibold text-slate-700">Tipo de Tarea a Crear:</span>
+              <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setTaskCreationMode('simple')}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                    taskCreationMode === 'simple' ? 'bg-blue-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Simple
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTaskCreationMode('detailed')}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md transition-colors cursor-pointer ${
+                    taskCreationMode === 'detailed' ? 'bg-blue-900 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Compuesta (Título + Detalle)
+                </button>
+              </div>
+            </div>
+
+            {/* Listado Dinámico de Partidas */}
+            <div className="space-y-3">
+              {quote.items.length === 0 ? (
+                <div className="text-center py-10 px-4 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
+                  <Building className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">No hay tareas de obra registradas</p>
+                  <p className="text-xs text-slate-400 mt-1">Haz clic en el botón inferior para agregar la primera tarea técnica.</p>
+                </div>
+              ) : (
+                quote.items.map((item, index) => {
                   const isDetailed = item.mode === 'detailed' || Boolean(item.title && item.title.trim());
                   return (
                     <div
                       key={item.id}
-                      className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3 transition-all hover:border-slate-300"
+                      className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3 relative group hover:border-slate-300 transition-all"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 font-mono text-xs font-bold">
-                            Tarea #{index + 1}
-                          </span>
+                      <div className="flex items-center justify-between gap-2 border-b border-slate-200/60 pb-2">
+                        <span className="text-xs font-mono font-bold text-blue-900 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                          Tarea {index + 1}
+                        </span>
+
+                        <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => toggleItemMode(item.id)}
-                            className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 transition-colors font-medium"
+                            className="text-[11px] font-semibold text-slate-500 hover:text-blue-900 px-2 py-0.5 rounded hover:bg-slate-200/60 transition-colors cursor-pointer"
                           >
-                            {isDetailed ? '📝 Con descripción' : '📋 Sencilla'}
+                            {isDetailed ? 'Cambiar a Simple' : 'Agregar Título'}
                           </button>
-                        </div>
-
-                        {quote.items.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeItem(item.id)}
-                            className="text-xs text-slate-400 hover:text-red-600 transition-colors flex items-center gap-1 p-1"
-                            title="Eliminar esta tarea"
+                            className="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Eliminar tarea"
                           >
                             <Trash2 className="w-4 h-4" />
-                            <span>Eliminar</span>
                           </button>
-                        )}
+                        </div>
                       </div>
 
-                      {isDetailed ? (
-                        <div className="space-y-3">
-                          <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                              Actividad / Título del Capítulo
-                            </label>
-                            <input
-                              type="text"
-                              value={item.title || ''}
-                              onChange={(e) => updateItemTitle(item.id, e.target.value)}
-                              onBlur={() => updateItemTitle(item.id, toProperCase(item.title || ''))}
-                              placeholder="Ej: Mampostería y muros estructurales"
-                              className="w-full h-11 px-3 text-base font-semibold bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-700 text-slate-900"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                              Descripción Técnica de la Actividad
-                            </label>
-                            <textarea
-                              value={item.description}
-                              onChange={(e) => updateItemDescription(item.id, e.target.value)}
-                              onBlur={() => updateItemDescription(item.id, toSentenceCase(item.description))}
-                              placeholder="Especificaciones técnicas, alcance, materiales o consideraciones de la actividad..."
-                              rows={2}
-                              className="w-full p-3 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-700 resize-none text-slate-800"
-                            />
-                          </div>
-                        </div>
-                      ) : (
+                      {isDetailed && (
                         <div>
-                          <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
-                            Descripción de la Actividad
+                          <label className="block text-xs font-semibold text-slate-700 mb-1">
+                            Título / Tarea Principal
                           </label>
-                          <textarea
-                            value={item.description}
-                            onChange={(e) => updateItemDescription(item.id, e.target.value)}
-                            onBlur={() => updateItemDescription(item.id, toSentenceCase(item.description))}
-                            placeholder="Descripción de la tarea u obra civil a ejecutar..."
-                            rows={2}
-                            className="w-full p-3 text-base bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-700 resize-none text-slate-800"
+                          <input
+                            type="text"
+                            value={item.title || ''}
+                            onChange={(e) => updateItemTitle(item.id, e.target.value)}
+                            onBlur={() => updateItemTitle(item.id, toProperCase(item.title || ''))}
+                            placeholder="Ej: MAMPOSTERÍA Y PAÑETES"
+                            className="w-full h-10 px-3 text-sm font-semibold bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none text-slate-900"
+                          />
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          Descripción Técnica de la Tarea <span className="text-rose-500">*</span>
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={item.description}
+                          onChange={(e) => updateItemDescription(item.id, e.target.value)}
+                          onBlur={() => updateItemDescription(item.id, toSentenceCase(cleanWhitespace(item.description)))}
+                          placeholder="Especificaciones, alcance de obra, suministro e instalación..."
+                          className="w-full p-3 text-sm bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none resize-y text-slate-900"
+                        />
+                      </div>
+
+                      {/* Input de Valor de la Tarea (solo visible en modo Por Partida/Tarea) */}
+                      {currentPricingMode === 'tasks' && (
+                        <div>
+                          <div className="mb-1">
+                            <label className="block text-xs font-semibold text-slate-700">
+                              Valor Tarea ($ COP)
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={item.subtotal === 0 ? '' : formatCOPInput(item.subtotal)}
+                            onChange={(e) => {
+                              const digits = e.target.value.replace(/\D/g, '');
+                              const val = digits ? parseInt(digits, 10) : 0;
+                              updateItemSubtotal(item.id, val);
+                            }}
+                            placeholder="0"
+                            className="w-full h-11 px-3 text-base font-mono font-semibold bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none text-slate-900"
                           />
                         </div>
                       )}
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
 
-            {/* CAMPO DESTACADO DE SUBTOTAL ÚNICO GLOBAL */}
-            <div className="p-5 rounded-2xl bg-blue-50/70 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <label className="block text-sm sm:text-base font-bold text-blue-950 uppercase tracking-wide">
-                  Subtotal Único Global ($ COP)
-                </label>
-                <p className="text-xs sm:text-sm text-blue-800 mt-0.5">
-                  Valor único global acordado para la totalidad del conjunto de tareas.
-                </p>
-              </div>
-              <div className="relative w-full sm:w-64">
-                <span className="absolute left-3.5 top-3 text-lg font-bold text-blue-900 font-mono">$</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  value={quote.subtotal || ''}
-                  onChange={(e) => updateField('subtotal', Number(e.target.value) || 0)}
-                  placeholder="0"
-                  className="w-full h-12 pl-8 pr-4 text-right text-xl sm:text-2xl font-bold font-mono text-blue-950 bg-white border border-blue-300 rounded-xl focus:border-blue-700 focus:ring-4 focus:ring-blue-100 outline-none"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={addItem}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-blue-300 bg-blue-50/50 hover:bg-blue-50 hover:border-blue-500 text-blue-900 text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Agregar Nueva Tarea</span>
+              </button>
+            </div>
+
+            {/* BARRA INFERIOR DE SUMA SUBTOTAL EN PASO 2 */}
+            <div className="p-3.5 bg-slate-100 rounded-xl border border-slate-200 flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-700">
+                {currentPricingMode === 'tasks' ? 'Subtotal Calculado (Suma de Tareas):' : 'Subtotal Global del Proyecto:'}
+              </span>
+              <span className="text-base font-mono font-bold text-blue-950">
+                {formatCurrency(subtotalAmount)}
+              </span>
             </div>
           </div>
         )}
 
-        {/* ================= PASO 4: FORMAS DE PAGO Y CLÁUSULAS ================= */}
-        {activeTab === 4 && (
+        {/* ================= PASO 3: FORMA DE PAGO Y VIGENCIA ================= */}
+        {activeTab === 3 && (
           <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
+            {/* Panel de Éxito cuando la Cotización ya fue Finalizada */}
+            {quote.isFinalized && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 text-emerald-950 shadow-2xs">
+                <div className="flex items-start sm:items-center gap-3">
+                  <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <div>
+                    <h4 className="text-sm sm:text-base font-bold text-emerald-900">
+                      Cotización N° {quote.quoteNumber} Finalizada y Guardada
+                    </h4>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      Registrada formalmente en Google Sheets (CotizacionesMYC). Selecciona una acción para continuar:
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 pt-3 border-t border-emerald-200/70">
+                  <button
+                    type="button"
+                    onClick={onDownloadQuote}
+                    className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Descargar Cotización (PDF)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onNewQuote}
+                    className="w-full py-2.5 px-4 bg-white hover:bg-emerald-100/80 text-emerald-800 border border-emerald-300 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <RotateCcw className="w-4 h-4 text-emerald-700" />
+                    <span>Generar una nueva cotización</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Percent className="w-5 h-5 text-blue-900" />
-                  Condiciones de Pago y Cláusulas
+                  Pagos y tiempos
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Distribución porcentual de pago entre anticipo y finalización de los trabajos.
-                </p>
               </div>
               <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
-                Paso 4 de 5
+                Paso 3 de 3
               </span>
             </div>
 
-            {/* Preajustes rápidos */}
-            <div>
-              <span className="block text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">
-                Preajustes Rápidos de Distribución:
-              </span>
-              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                {[
-                  [50, 50],
-                  [40, 60],
-                  [60, 40],
-                  [30, 70],
-                ].map(([start, end]) => {
-                  const isSelected = quote.startPct === start && quote.endPct === end;
-                  return (
-                    <button
-                      key={`${start}-${end}`}
-                      type="button"
-                      onClick={() => handlePresetPercentages(start, end)}
-                      className={`px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
-                        isSelected
-                          ? 'bg-blue-900 text-white border-blue-900 shadow-xs'
-                          : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                      }`}
-                    >
-                      {start}/{end}
-                    </button>
-                  );
-                })}
+            {/* SECCIÓN FECHA DE VIGENCIA CON BOTONES RÁPIDOS */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-blue-900" />
+                  <label className="text-sm font-bold text-slate-900">
+                    Fecha de Vigencia de la Oferta
+                  </label>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  % al Iniciar (Anticipo)
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
                 <div className="relative">
                   <input
+                    type="text"
+                    value={quote.fechaVigencia || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      updateMultipleFields({
+                        fechaVigencia: val,
+                        validityDays: val,
+                      });
+                    }}
+                    placeholder="DD/MM/AAAA"
+                    className="w-full h-11 px-4 text-base font-mono font-semibold bg-white border border-slate-300 rounded-xl focus:border-blue-700 outline-none text-slate-900"
+                  />
+                  <Calendar className="w-4 h-4 text-slate-400 absolute right-3.5 top-3.5 pointer-events-none" />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleAddDaysValidity(15)}
+                    className="flex-1 h-11 rounded-xl text-xs font-bold font-mono bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    +15 días
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAddDaysValidity(30)}
+                    className="flex-1 h-11 rounded-xl text-xs font-bold font-mono bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    +30 días
+                  </button>
+                </div>
+              </div>
+              <span className="text-[11px] text-slate-500 block">
+                Fecha hasta la cual los precios se mantienen vigentes para el cliente.
+              </span>
+            </div>
+
+            {/* ESQUEMA DE ANTICIPO Y SALDO EN DINERO */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-slate-900">
+                  Distribución Porcentual del Pago
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handlePresetPercentages(50, 50)}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    50 / 50
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePresetPercentages(60, 40)}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    60 / 40
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePresetPercentages(70, 30)}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    70 / 30
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Anticipo al Iniciar (%)</span>
+                    <span className="text-xs font-mono font-bold text-blue-900">{quote.startPct}%</span>
+                  </div>
+                  <input
                     type="number"
-                    inputMode="numeric"
                     min="0"
                     max="100"
-                    value={quote.startPct === 0 && quote.endPct === 100 ? '' : (quote.startPct ?? '')}
+                    value={quote.startPct}
                     onChange={(e) => handleStartPctChange(e.target.value)}
-                    placeholder="50"
-                    className="w-full h-12 px-4 text-lg font-bold font-mono bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
+                    className="w-full h-11 px-3 text-base font-mono font-bold bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none text-slate-900"
                   />
-                  <span className="absolute right-4 top-3 text-slate-400 font-bold">%</span>
+                  <div className="text-xs font-mono font-bold text-slate-700 pt-1 border-t border-slate-200/60">
+                    Valor Calculado: <span className="text-blue-900 font-extrabold">{formatCurrency(anticipoDinero)}</span>
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  % al Finalizar el Trabajo
-                </label>
-                <div className="relative">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700">Saldo al Finalizar (%)</span>
+                    <span className="text-xs font-mono font-bold text-blue-900">{quote.endPct}%</span>
+                  </div>
                   <input
                     type="number"
-                    inputMode="numeric"
                     min="0"
                     max="100"
-                    value={quote.endPct === 0 && quote.startPct === 100 ? '' : (quote.endPct ?? '')}
+                    value={quote.endPct}
                     onChange={(e) => handleEndPctChange(e.target.value)}
-                    placeholder="50"
-                    className="w-full h-12 px-4 text-lg font-bold font-mono bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
+                    className="w-full h-11 px-3 text-base font-mono font-bold bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none text-slate-900"
                   />
-                  <span className="absolute right-4 top-3 text-slate-400 font-bold">%</span>
+                  <div className="text-xs font-mono font-bold text-slate-700 pt-1 border-t border-slate-200/60">
+                    Valor Calculado: <span className="text-blue-900 font-extrabold">{formatCurrency(saldoDinero)}</span>
+                  </div>
                 </div>
               </div>
+
+              {!isPaymentValid && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center gap-2 font-medium">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>La suma del anticipo ({quote.startPct}%) y el saldo ({quote.endPct}%) debe ser exactamente 100%.</span>
+                </div>
+              )}
             </div>
 
-            {/* BANNER DE VALIDACIÓN 100% */}
-            <div
-              className={`p-4 rounded-xl border flex items-center justify-between text-xs sm:text-sm font-medium ${
-                isPaymentValid
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-amber-50 border-amber-300 text-amber-900'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {isPaymentValid ? (
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-                )}
-                <span>
-                  {isPaymentValid
-                    ? 'Distribución válida: La suma de inicio y entrega equivale exactamente al 100%.'
-                    : `Advertencia: La suma actual es de ${paymentSum}%. Debe totalizar el 100%.`}
+            {/* RESUMEN ECONÓMICO FINAL */}
+            <div className="p-4 bg-blue-950 text-white rounded-2xl flex items-center justify-between">
+              <div>
+                <span className="text-xs text-blue-200 uppercase tracking-wider font-semibold block">
+                  {currentPricingMode === 'tasks' ? 'Total Cotizado (Suma de Tareas)' : 'Total Cotizado (Valor Global)'}
                 </span>
+                <span className="text-xl sm:text-2xl font-mono font-bold text-white">{formatCurrency(totalAmount)}</span>
               </div>
-              <span className="font-mono font-bold text-sm shrink-0">Total: {paymentSum}%</span>
-            </div>
-
-            {/* CLÁUSULA ESTÁNDAR CANVA */}
-            <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs sm:text-sm text-amber-900 flex items-center gap-2">
-              <span className="font-bold text-red-600">Importante:</span>
-              <span>En la plantilla Canva se redacta: &quot;este valor es antes de IVA&quot;.</span>
-            </div>
-          </div>
-        )}
-
-        {/* ================= PASO 5: FIRMA Y EMPRESA ================= */}
-        {activeTab === 5 && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-xs space-y-5">
-            <div className="border-b border-slate-100 pb-3 flex items-center justify-between">
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-blue-900" />
-                  Firma Institucional y Canales de Contacto
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Información corporativa del contratista visible en el pie de página de la cotización.
-                </p>
-              </div>
-              <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-900 border border-blue-200">
-                Paso 5 de 5
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Representante Legal
-                </label>
-                <input
-                  type="text"
-                  value={quote.representativeName}
-                  onChange={(e) => updateField('representativeName', e.target.value)}
-                  onBlur={() => updateField('representativeName', toProperCase(quote.representativeName))}
-                  className="w-full h-12 px-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Cargo Institucional
-                </label>
-                <input
-                  type="text"
-                  value={quote.representativeRole}
-                  onChange={(e) => updateField('representativeRole', e.target.value)}
-                  onBlur={() => updateField('representativeRole', toProperCase(quote.representativeRole))}
-                  className="w-full h-12 px-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Teléfono / WhatsApp
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="tel"
-                    value={quote.contactPhone}
-                    onChange={(e) => updateField('contactPhone', e.target.value)}
-                    className="w-full h-12 pl-11 pr-4 text-base font-mono font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                  />
-                  <Phone className="w-4 h-4 text-blue-700 absolute left-3.5 top-4 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="email"
-                    value={quote.contactEmail}
-                    onChange={(e) => updateField('contactEmail', e.target.value)}
-                    className="w-full h-12 pl-11 pr-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                  />
-                  <Mail className="w-4 h-4 text-blue-700 absolute left-3.5 top-4 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  Instagram Corporativo
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.contactInstagram}
-                    onChange={(e) => updateField('contactInstagram', e.target.value)}
-                    className="w-full h-12 pl-11 pr-4 text-base font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                  />
-                  <Instagram className="w-4 h-4 text-blue-700 absolute left-3.5 top-4 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-slate-800 mb-1.5">
-                  NIT de la Empresa
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={quote.nit}
-                    onChange={(e) => updateField('nit', e.target.value)}
-                    className="w-full h-12 pl-11 pr-4 text-base font-mono font-medium bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none text-slate-900"
-                  />
-                  <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-4 pointer-events-none" />
-                </div>
+              <div className="text-right">
+                <span className="text-xs text-blue-200 block">N° Consecutivo</span>
+                <span className="text-base sm:text-lg font-mono font-bold text-emerald-400">N° {quote.quoteNumber}</span>
               </div>
             </div>
           </div>
@@ -820,13 +783,13 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
 
       </div>
 
-      {/* BOTONES INFERIORES DE NAVEGACIÓN ANTERIOR / SIGUIENTE */}
+      {/* BOTONES INFERIORES DE NAVEGACIÓN ANTERIOR / SIGUIENTE / FINALIZAR */}
       <div className="p-3 sm:p-3.5 bg-white border-t border-slate-200 shrink-0 flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() => setActiveTab((prev) => Math.max(1, prev - 1))}
           disabled={activeTab === 1}
-          className="px-3 sm:px-4 py-2 sm:py-2.5 min-h-[42px] rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 sm:px-4 py-2 sm:py-2.5 min-h-[42px] rounded-xl border border-slate-300 text-xs sm:text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
           <ChevronLeft className="w-4 h-4 shrink-0" />
           <span className="hidden xs:inline">Paso </span>
@@ -844,16 +807,63 @@ export const QuickForm: React.FC<QuickFormProps> = ({ quote, onChange }) => {
           ))}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab((prev) => Math.min(5, prev + 1))}
-          disabled={activeTab === 5}
-          className="px-4 sm:px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <span>{activeTab === 5 ? 'Completado' : 'Siguiente'}</span>
-          <span className="hidden xs:inline">{activeTab === 5 ? '' : ' Paso'}</span>
-          <ChevronRight className="w-4 h-4 shrink-0" />
-        </button>
+        {activeTab < 3 ? (
+          <button
+            type="button"
+            onClick={() => {
+            if (activeTab === 1 && !isStep1Valid) {
+              setAttemptedStep1(true);
+              return;
+            }
+            setActiveTab((prev) => Math.min(3, prev + 1));
+          }}
+            className="px-4 sm:px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <span>Siguiente</span>
+            <span className="hidden xs:inline"> Paso</span>
+            <ChevronRight className="w-4 h-4 shrink-0" />
+          </button>
+        ) : !quote.isFinalized ? (
+          <button
+            type="button"
+            onClick={onFinalizeQuote}
+            disabled={isFinalizing}
+            className="px-5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          >
+            {isFinalizing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Finalizando...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Finalizar Cotización</span>
+              </>
+            )}
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onDownloadQuote}
+              className="px-3.5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Descargar cotización oficial en PDF"
+            >
+              <Download className="w-4 h-4" />
+              <span>Descargar Cotización</span>
+            </button>
+            <button
+              type="button"
+              onClick={onNewQuote}
+              className="px-3.5 py-2 sm:py-2.5 min-h-[42px] rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs sm:text-sm font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Iniciar una nueva cotización"
+            >
+              <RotateCcw className="w-4 h-4 text-slate-600" />
+              <span className="hidden xs:inline">Nueva Cotización</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
