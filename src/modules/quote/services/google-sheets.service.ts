@@ -104,10 +104,13 @@ export function calculateExpirationStatus(fechaVigenciaStr?: string): 'Activa' |
 }
 
 /**
- * Obtiene la URL configurada del Webhook exclusivamente desde las variables de entorno (.env).
+ * Obtiene la URL configurada del Webhook desde las variables de entorno (.env).
+ * Soporta GOOGLE_SHEETS_WEBHOOK_URL (recomendado) y VITE_GOOGLE_SHEETS_WEBHOOK_URL (retrocompatibilidad).
  */
 export function getGoogleSheetsWebhookUrl(): string | null {
-  const envUrl = import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL;
+  const envUrl =
+    (import.meta.env as any).GOOGLE_SHEETS_WEBHOOK_URL ||
+    import.meta.env.VITE_GOOGLE_SHEETS_WEBHOOK_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().startsWith('http')) {
     return envUrl.trim();
   }
