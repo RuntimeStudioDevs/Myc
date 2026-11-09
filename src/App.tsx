@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { flushSync } from 'react-dom';
+import { useState, useRef, useEffect } from 'react';
 import { useQuote } from './modules/quote/hooks/useQuote';
 import { useQuotePdf, ExportDocumentMode } from './modules/quote/hooks/useQuotePdf';
 import { QuoteHeader } from './modules/quote/components/QuoteHeader';
@@ -7,19 +6,14 @@ import { QuoteToolbar } from './modules/quote/components/QuoteToolbar';
 import { QuickForm } from './modules/quote/components/QuickForm';
 import { QuoteDocument } from './modules/quote/components/QuoteDocument';
 import { PresentationLetterDocument } from './modules/quote/components/PresentationLetterDocument';
-import { EmailModal } from './modules/mailer/components/EmailModal';
-import { SheetsConfigModal } from './modules/quote/components/SheetsConfigModal';
 import { Toast } from './shared/components/Toast';
 import { paginateQuoteItems } from './modules/quote/services/quote-paginator';
-import {
-  isGoogleSheetsConfigured,
-  saveQuoteToGoogleSheets,
-  fetchNextQuoteNumber,
-} from './modules/quote/services/google-sheets.service';
+import { saveQuoteToGoogleSheets } from './modules/quote/services/google-sheets.service';
 import { Sliders, Eye } from 'lucide-react';
 
 export default function App() {
-  const { quote, setQuote, loadSample, resetQuote } = useQuote();
+  const { quote, setQuote, markAsFinalized, resetQuote } = useQuote();
+  const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const documentRef = useRef<HTMLDivElement>(null);
   const vaultRef = useRef<HTMLDivElement>(null);
   const { isExporting, printDocument, downloadPdf } = useQuotePdf(documentRef, vaultRef);
@@ -47,8 +41,6 @@ export default function App() {
 
   const [zoomScale, setZoomScale] = useState<number>(() => calculateOptimalZoom());
   const [highlightEmpty, setHighlightEmpty] = useState<boolean>(true);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
-  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState<boolean>(false);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Escuchar redimensionamiento de pantalla para mantener escala óptima en móviles
@@ -67,15 +59,13 @@ export default function App() {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  const handleNewQuote = () => {
-    const msg = resetQuote();
+  const handleNewQuote = async () => {
+    showNotification('Consultando consecutivo y preparando nueva cotización...');
+    const msg = await resetQuote();
     showNotification(msg);
   };
 
-  const handleLoadSample = () => {
-    const msg = loadSample();
-    showNotification(msg);
-  };
+
 
   const handleResetZoom = () => {
     const optimal = calculateOptimalZoom();
@@ -83,61 +73,65 @@ export default function App() {
     showNotification(`Escala adaptada a la pantalla (${Math.round(optimal * 100)}%)`);
   };
 
-  const handleDownloadPdf = async (mode?: ExportDocumentMode) => {
-    const strategyId = mode || (activeDocumentView === 'both' ? 'joint' : activeDocumentView);
-    let activeQuote = quote;
-
-    // Si Google Sheets está conectado, guardar cliente y obtener consecutivo único atómico
-    if (isGoogleSheetsConfigured()) {
-      showNotification('Conectando con Google Sheets y asignando N° único...');
-      const cloudRes = await saveQuoteToGoogleSheets(quote);
-      if (cloudRes.success && cloudRes.quoteNumber) {
-        activeQuote = {
-          ...quote,
-          quoteNumber: cloudRes.quoteNumber,
-        };
-        // Sincronizar inmediatamente el DOM antes de que html2canvas capture
-        flushSync(() => {
-          setQuote(activeQuote);
-        });
-        showNotification(`Registrado en Google Sheets (N° ${cloudRes.quoteNumber}). Generando PDF...`);
-      } else if (cloudRes.isOfflineFallback) {
-        showNotification(`Modo local (${cloudRes.error || 'sin conexión'}). Generando PDF...`);
-      }
+  // Finalizar cotización: Valida duplicados y disponibilidad, y guarda en CotizacionesMYC
+  const handleFinalizeQuote = async (): Promise<boolean> => {
+        if (!quote.clientName || !quote.clientName.trim()) {
+      showNotification('El Nombre del Cliente o Empresa es obligatorio (Paso 1).');
+      return false;
+    }
+    if (!quote.projectName || !quote.projectName.trim()) {
+      showNotification('El Nombre de la Obra o Proyecto es obligatorio (Paso 1).');
+      return false;
+    }
+    if (!quote.location || !quote.location.trim()) {
+      showNotification('La Ubicación de la Obra es obligatoria (Paso 1).');
+      return false;
+    }
+    if (!quote.items || quote.items.length === 0) {
+      showNotification('Debes agregar al menos una tarea de obra en el Paso 2.');
+      return false;
     }
 
-    downloadPdf(activeQuote, strategyId, showNotification);
+    setIsFinalizing(true);
+    showNotification('Validando y guardando cotización en Google Sheets...');
+
+    try {
+      // Guardar formalmente en Google Sheets (CotizacionesMYC) con candado y validación atómica
+      const saveRes = await saveQuoteToGoogleSheets(quote);
+      if (!saveRes.success) {
+        showNotification(saveRes.error || 'No se pudo guardar la cotización.');
+        setIsFinalizing(false);
+        return false;
+      }
+
+      const assignedNumber = saveRes.quoteNumber || quote.quoteNumber;
+      markAsFinalized(assignedNumber);
+      showNotification(saveRes.message || `Cotización N° ${assignedNumber} finalizada con éxito.`);
+      return true;
+    } catch (err: any) {
+      console.error('Error al finalizar cotización:', err);
+      const msg = err?.message ? `Error: ${err.message}` : 'Error al conectar con Google Sheets.';
+      showNotification(msg);
+      return false;
+    } finally {
+      setIsFinalizing(false);
+    }
   };
 
-  const handleSheetsConfigSaved = () => {
-    if (isGoogleSheetsConfigured()) {
-      fetchNextQuoteNumber().then((res) => {
-        if (res.success && res.nextQuoteNumber) {
-          setQuote({
-            ...quote,
-            quoteNumber: res.nextQuoteNumber,
-          });
-          showNotification(`Google Sheets conectado. Próximo consecutivo: N° ${res.nextQuoteNumber}`);
-        } else {
-          showNotification('Google Sheets conectado.');
-        }
-      });
-    } else {
-      showNotification('Modo local activado.');
-    }
+  // Descarga de PDF: Responsabilidad única de exportación (NO guarda en Sheets para evitar duplicaciones)
+  const handleDownloadPdf = (mode?: ExportDocumentMode) => {
+    const strategyId = mode || (activeDocumentView === 'both' ? 'joint' : activeDocumentView);
+    downloadPdf(quote, strategyId, showNotification);
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col font-sans select-none antialiased">
+    <div className="h-screen max-h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 flex flex-col font-sans select-none antialiased">
       {/* Barra Superior Institucional con Menú Desplegable Basado en Strategy Pattern */}
       <QuoteHeader
         quote={quote}
         isExporting={isExporting}
         activeView={activeDocumentView === 'both' ? 'joint' : activeDocumentView}
         onNewQuote={handleNewQuote}
-        onLoadSample={handleLoadSample}
-        onOpenEmailModal={() => setIsEmailModalOpen(true)}
-        onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
         onDownloadPdf={handleDownloadPdf}
       />
 
@@ -198,7 +192,7 @@ export default function App() {
       </div>
 
       {/* Espacio de Trabajo Principal: Dos Columnas en Desktop (>= 1024px) o Pestañas en Móvil/Tablet (< 1024px) */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative min-h-0">
         {/* Columna Izquierda: Consola de Captura de Campos Ergonómica */}
         <aside
           id="left-panel"
@@ -206,30 +200,15 @@ export default function App() {
             mobileTab === 'editor' ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          {/* Encabezado del Panel de Captura */}
-          <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
-            <div className="flex items-center gap-2.5 sm:gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-900 border border-blue-200 flex items-center justify-center font-bold shrink-0">
-                <Sliders className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
-                  Consola de Captura de Obra
-                </h2>
-                <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
-                  Modo claro con controles ergonómicos en 5 pasos
-                </p>
-              </div>
-            </div>
-
-            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-              {quote.items.length} {quote.items.length === 1 ? 'partida' : 'partidas'}
-            </span>
-          </div>
-
-          {/* Formulario con Navegación y Campos Amplios */}
-          <div className="flex-1 overflow-hidden">
-            <QuickForm quote={quote} onChange={setQuote} />
+          <div className="flex-1 overflow-hidden h-full min-h-0">
+            <QuickForm
+              quote={quote}
+              onChange={setQuote}
+              onFinalizeQuote={handleFinalizeQuote}
+              onDownloadQuote={() => handleDownloadPdf()}
+              onNewQuote={handleNewQuote}
+              isFinalizing={isFinalizing}
+            />
           </div>
         </aside>
 
@@ -240,11 +219,10 @@ export default function App() {
             mobileTab === 'preview' ? 'flex' : 'hidden lg:flex'
           }`}
         >
-          {/* Barra de Herramientas con Selector Segmentado (Dossier / Carta / Cotización) */}
+          {/* Barra de Herramientas con Selector Segmentado (Cotización Completa / Carta / Cotización) */}
           <QuoteToolbar
             zoomScale={zoomScale}
             highlightEmpty={highlightEmpty}
-            totalPages={totalPages}
             activeView={activeDocumentView}
             onViewChange={setActiveDocumentView}
             onToggleHighlight={() => setHighlightEmpty(!highlightEmpty)}
@@ -309,20 +287,6 @@ export default function App() {
         <QuoteDocument quote={quote} scale={1} highlightEmpty={false} />
         <PresentationLetterDocument quote={quote} scale={1} highlightEmpty={false} />
       </div>
-
-      {/* Modal de Envío por Correo y WhatsApp */}
-      <EmailModal
-        quote={quote}
-        isOpen={isEmailModalOpen}
-        onClose={() => setIsEmailModalOpen(false)}
-      />
-
-      {/* Modal de Configuración y Diagnóstico de Google Sheets */}
-      <SheetsConfigModal
-        isOpen={isSheetsModalOpen}
-        onClose={() => setIsSheetsModalOpen(false)}
-        onConfigSaved={handleSheetsConfigSaved}
-      />
     </div>
   );
 }

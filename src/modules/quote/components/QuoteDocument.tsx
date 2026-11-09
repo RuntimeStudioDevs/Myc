@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { QuoteData } from '../types/quote.types';
 import { MCLogo } from '../../../shared/components/MCLogo';
 import { formatCurrency } from '../../../shared/utils/currency';
@@ -114,10 +114,10 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                             {quote.date || new Date().toLocaleDateString('es-CO')}
                           </span>
 
-                          {quote.validityDays && (
+                          {(quote.fechaVigencia || quote.validityDays) && (
                             <>
                               <span className="text-slate-200 font-poppins">Validez:</span>
-                              <span className="font-medium text-white tracking-wide font-poppins">{quote.validityDays}</span>
+                              <span className="font-medium text-white tracking-wide font-poppins">{quote.fechaVigencia || quote.validityDays}</span>
                             </>
                           )}
                         </div>
@@ -147,11 +147,11 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                       <div className="z-10 text-[11px] font-medium text-slate-200 font-poppins text-right">
                         <div>
                           <span className="text-slate-300">Ref: </span>
-                          <span className="font-bold text-white font-mono">{quote.code || 'C1'}-{quote.quoteNumber || '001'}</span>
+                          <span className="font-bold text-white font-mono">{quote.code || 'C1'}-{quote.quoteNumber || '101'}</span>
                         </div>
                         <div className="text-[10px] text-slate-300">
                           Fecha: {quote.date || new Date().toLocaleDateString('es-CO')}
-                          {quote.validityDays ? ` | Validez: ${quote.validityDays}` : ''}
+                          {(quote.fechaVigencia || quote.validityDays) ? ` | Validez: ${quote.fechaVigencia || quote.validityDays}` : ''}
                         </div>
                       </div>
                     </div>
@@ -262,11 +262,17 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                                   )}
                                 </div>
                                 <div className="w-1/4 text-right font-medium text-slate-900 tabular-nums font-poppins">
-                                  {isVeryFirstItem
-                                    ? totals.subtotal > 0
-                                      ? formatCurrency(totals.subtotal)
-                                      : renderVariable('', '$(VALOR)', 'Subtotal')
-                                    : ''}
+                                  {quote.pricingMode === 'global' ? (
+                                    isVeryFirstItem && totals.subtotal > 0 ? (
+                                      formatCurrency(totals.subtotal)
+                                    ) : (
+                                      ''
+                                    )
+                                  ) : item.subtotal > 0 ? (
+                                    formatCurrency(item.subtotal)
+                                  ) : (
+                                    '-'
+                                  )}
                                 </div>
                               </div>
                             );
@@ -434,14 +440,16 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
 
               {/* PIE DE PÁGINA DECORATIVO: Base #b4c3e1 con dos paralelogramos #234794 a -22deg */}
               <div className="h-10 w-full bg-[#b4c3e1] relative flex items-center justify-between overflow-hidden px-8">
-                {/* Indicador de página discreto */}
-                {pages.length > 1 ? (
+                <div className="flex items-center gap-2">
                   <span className="text-[11px] font-semibold text-[#234794] tracking-wide font-poppins">
-                    Página {page.pageNumber} de {page.totalPages}
+                    Cotización · M&C Construcciones Civiles
                   </span>
-                ) : (
-                  <span />
-                )}
+                  {pages.length > 1 && (
+                    <span className="text-[11px] font-medium text-[#234794]/80 font-poppins">
+                      · Página {page.pageNumber} de {page.totalPages}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 h-full">
                   <div className="w-5 h-14 bg-[#234794] transform -skew-x-[22deg] translate-y-1" />

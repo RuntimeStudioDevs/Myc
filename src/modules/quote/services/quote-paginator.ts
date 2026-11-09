@@ -14,7 +14,6 @@ export interface QuotePageData {
 // Altura disponible en píxeles (basada en el marco A4 de 1123px @ 96DPI)
 // 510px permite que las descripciones lleguen hasta justo encima del bloque de notas y subtotal (con encabezado ampliado de 116px)
 const PAGE_1_MAX_ITEMS_HEIGHT_WITH_FOOTER = 510;
-const PAGE_1_MAX_ITEMS_HEIGHT_WITHOUT_FOOTER = 750;
 const PAGE_2_MAX_ITEMS_HEIGHT_WITH_FOOTER = 560;
 const PAGE_N_MAX_ITEMS_HEIGHT_WITHOUT_FOOTER = 850;
 

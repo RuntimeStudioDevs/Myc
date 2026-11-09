@@ -1,4 +1,4 @@
-import React from 'react';
+import type { FC } from 'react';
 
 export interface MCLogoProps {
   className?: string;
@@ -6,9 +6,8 @@ export interface MCLogoProps {
   alt?: string;
 }
 
-export const MCLogo: React.FC<MCLogoProps> = ({
+export const MCLogo: FC<MCLogoProps> = ({
   className = 'h-24',
-  variant = 'transparent',
   alt = 'M&C Construcciones Civiles S.A.S.',
 }) => {
   return (

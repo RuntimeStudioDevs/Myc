@@ -1,9 +1,12 @@
 import { QuoteData, QuoteTotals } from '../types/quote.types';
 
 /**
- * Calcula los totales y el desglose de AIU e IVA a partir del Subtotal Único Global.
+ * Calcula los totales y el desglose de AIU e IVA:
+ * - Modo 'tasks' (Por Tareas): El Subtotal es la suma de los subtotales de cada partida técnica.
+ * - Modo 'global' (Valor Global Total): El Subtotal se define directamente como un monto global del proyecto.
+ * 
  * Fórmula colombiana de obras civiles:
- * - Subtotal = valor único global de la cotización
+ * - Subtotal = suma de partidas o valor global
  * - Administración = Subtotal * (adminPct / 100)
  * - Imprevistos = Subtotal * (contingencyPct / 100)
  * - Utilidad = Subtotal * (utilityPct / 100)
@@ -11,7 +14,19 @@ import { QuoteData, QuoteTotals } from '../types/quote.types';
  * - Total = Subtotal + AIU + IVA
  */
 export function calculateQuoteTotals(quote: Partial<QuoteData>): QuoteTotals {
-  const subtotal = Number(quote.subtotal) || 0;
+  let subtotal = 0;
+
+  if (quote.pricingMode === 'global') {
+    subtotal = Math.max(0, Number(quote.subtotal) || 0);
+  } else {
+    // Por defecto modo 'tasks' (suma de partidas)
+    if (quote.items && quote.items.length > 0) {
+      const itemsSum = quote.items.reduce((acc, it) => acc + (Number(it.subtotal) || 0), 0);
+      subtotal = itemsSum > 0 ? itemsSum : Math.max(0, Number(quote.subtotal) || 0);
+    } else {
+      subtotal = Math.max(0, Number(quote.subtotal) || 0);
+    }
+  }
 
   const adminAmount = subtotal * ((Number(quote.adminPct) || 0) / 100);
   const contingencyAmount = subtotal * ((Number(quote.contingencyPct) || 0) / 100);

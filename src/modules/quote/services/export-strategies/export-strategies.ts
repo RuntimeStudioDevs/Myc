@@ -89,8 +89,8 @@ function getLetterPages(rootContainer: HTMLElement): HTMLElement[] {
  */
 export class JointDossierStrategy implements DocumentExportStrategy {
   readonly id: ExportStrategyId = 'joint';
-  readonly label = 'Ambos en 1 Archivo - Dossier';
-  readonly shortLabel = 'Descargar Dossier (PDF)';
+  readonly label = 'Cotización Completa (1 Archivo)';
+  readonly shortLabel = 'Descargar Cotización';
   readonly description = 'Cotización técnica y Carta de presentación unificadas en un único archivo.';
   readonly badge = '1 Solo PDF';
 
@@ -104,7 +104,7 @@ export class JointDossierStrategy implements DocumentExportStrategy {
 
     pdf.save(filename);
 
-    const message = `Dossier conjunto guardado como ${filename} (${allPages.length} páginas)`;
+    const message = `Cotización completa guardada como ${filename} (${allPages.length} páginas)`;
     context.onNotification?.(message);
 
     return {
@@ -164,7 +164,7 @@ export class QuoteOnlyStrategy implements DocumentExportStrategy {
   readonly id: ExportStrategyId = 'quote';
   readonly label = 'Solo Cotización';
   readonly shortLabel = 'Descargar Cotización (PDF)';
-  readonly description = 'Presupuesto de partidas de obra civil, subtotal y desglose AIU.';
+  readonly description = 'Presupuesto de tareas de obra civil, subtotal y desglose AIU.';
 
   async execute(context: ExportContext): Promise<ExportResult> {
     const quotePages = getQuotePages(context.rootContainer);

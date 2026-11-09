@@ -28,12 +28,14 @@ export interface DocumentExportStrategy {
 
 /**
  * Limpia el consecutivo eliminando prefijos tipo "COT-" o "COT"
- * para dejar únicamente el número (ej: "COT-111" -> "111", "135" -> "135").
+ * para dejar únicamente el número (ej: "COT-001" -> "001", "025" -> "025").
  */
 export function cleanNumericConsecutive(raw?: string): string {
-  if (!raw || raw.trim() === '') return '111';
+  if (!raw || raw.trim() === '') return '101';
   const cleaned = raw.replace(/^COT-?/i, '').trim();
-  return cleaned !== '' ? cleaned : '111';
+  const parsed = parseInt(cleaned.replace(/\D/g, ''), 10);
+  if (isNaN(parsed) || parsed < 101) return '101';
+  return parsed < 1000 ? String(parsed).padStart(3, '0') : String(parsed);
 }
 
 /**
@@ -51,9 +53,9 @@ export function sanitizeClientName(clientName?: string): string {
 
 /**
  * Construye el nombre de archivo exacto según el contrato de nomenclatura institucional:
- * - Solo Cotización: Cotizacion_[N°].pdf (ej. Cotizacion_111.pdf)
- * - Solo Carta: Carta_de_Presentacion_[N°].pdf (ej. Carta_de_Presentacion_111.pdf)
- * - Juntas: MYC_CC[N°].pdf (ej. MYC_CC111.pdf)
+ * - Solo Cotización: Cotizacion_[N°].pdf (ej. Cotizacion_001.pdf)
+ * - Solo Carta: Carta_de_Presentacion_[N°].pdf (ej. Carta_de_Presentacion_001.pdf)
+ * - Juntas: MYC_CC[N°].pdf (ej. MYC_CC001.pdf)
  */
 export function buildExportFilename(
   quote: QuoteData,

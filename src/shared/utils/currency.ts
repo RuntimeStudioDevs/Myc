@@ -10,6 +10,16 @@ export const formatCurrency = (val: number | undefined | null): string => {
   })}`;
 };
 
+/**
+ * Formatea un valor numérico en tiempo real con separadores de miles colombianos (COP: 1.000.000).
+ */
+export const formatCOPInput = (val: number | string | undefined | null): string => {
+  if (val === undefined || val === null || val === '') return '';
+  const digits = String(val).replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
 export const parseCurrency = (val: string | number): number => {
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
   const clean = val.replace(/[^0-9,-]/g, '').replace(',', '.');

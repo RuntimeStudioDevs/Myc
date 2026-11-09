@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { QuoteData } from '../types/quote.types';
 import { MCLogo } from '../../../shared/components/MCLogo';
 import {
@@ -7,6 +7,7 @@ import {
   formatDateToLongSpanish,
 } from '../../../shared/utils/currency';
 import { calculateQuoteTotals } from '../services/quote-calculator';
+import { getCachedCompanyConfig } from '../services/google-sheets.service';
 import { Phone, Mail } from 'lucide-react';
 
 interface PresentationLetterDocumentProps {
@@ -104,7 +105,7 @@ export const PresentationLetterDocument = forwardRef<
 
               {/* Título: CARTA DE PRESENTACION */}
               <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none z-10">
-                <h1 className="text-2xl sm:text-[26px] font-bold tracking-[0.16em] text-white font-poppins uppercase select-none whitespace-nowrap">
+                <h1 className="text-lg sm:text-[20px] font-bold tracking-[0.06em] text-white font-poppins uppercase select-none whitespace-nowrap">
                   CARTA DE PRESENTACION
                 </h1>
               </div>
@@ -114,7 +115,7 @@ export const PresentationLetterDocument = forwardRef<
                 <div className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 items-center justify-items-end font-poppins">
                   <span className="text-slate-200 font-poppins">Código:</span>
                   <span className="font-bold text-white tracking-wide font-poppins">
-                    {quote.code || 'C1'}
+                    {quote.letterCode || getCachedCompanyConfig().Codigo_Serie_CartaPresentacion || 'CTP1'}
                   </span>
 
                   <span className="text-slate-200 font-poppins">N°</span>
@@ -211,7 +212,7 @@ export const PresentationLetterDocument = forwardRef<
                             {item.title ? (
                               <strong className="text-slate-900 font-semibold">{item.title}: </strong>
                             ) : null}
-                            {item.description || '(descripción de la partida)'}
+                            {item.description || '(descripción de la tarea)'}
                           </span>
                         </div>
                       ))}
