@@ -10,10 +10,17 @@ Plataforma web de ingeniería para la gestión, cálculo, emisión formal y expo
 * **Cotización de Obra Civil:** Paginación automática A4 (`quote-paginator.ts`), desglose detallado de partidas simples y compuestas, cálculo de AIU (Administración, Imprevistos, Utilidad) e IVA sobre la utilidad según normativa tributaria colombiana.
 * **Carta de Presentación Epistolar:** Réplica milimétrica del diseño oficial en azul institucional (`#234794`), tipografía Poppins, paralelogramos decorativos en `-22deg`, membrete formal y conversión determinista del valor total a letras en pesos colombianos (`numberToWordsCOP`).
 
-### 2. Recuperación y Edición In-Place de Cotizaciones (CRUD Cloud)
-* **Búsqueda Instantánea a 0 ms:** Búsqueda reactiva en memoria por número de consecutivo, nombre de cliente o proyecto sobre el catálogo sincronizado de Google Sheets.
-* **Ventana Emergente de Confirmación:** Diálogo interactivo de seguridad que muestra la ficha técnica y financiera completa antes de rehidratar la cotización, alertando si existen cambios locales sin guardar.
-* **Reconstrucción 100% Fiel en Texto Plano:** Rehidrata todas las partidas, condiciones de pago y montos directamente desde las 14 columnas nativas de Google Sheets sin depender de JSON extras.
+### 2. Vista Dedicada "Todas las Cotizaciones", Anulación (Soft Delete) y CRUD Cloud
+* **Vista Dedicada Multiplataforma (`QuoteRecoveryView.tsx`):** Navegación fluida a pantalla completa optimizada para smartphones, tablets y monitores de escritorio, eliminando limitaciones de scroll de ventanas modales.
+* **Búsqueda Instantánea a 0 ms:** Búsqueda reactiva en memoria por consecutivo, cliente o proyecto sobre el catálogo sincronizado de Google Sheets.
+* **Pestañas de Estado de Vigencia:** Reemplazo de filtros estáticos de cliente por pestañas segmentadas con contadores en tiempo real:
+  - 🟢 **Activas (N):** Ofertas vigentes y operativas listas para seguimiento.
+  - ⚫ **Inactivas (N):** Cotizaciones vencidas o anuladas que no contaminan el catálogo activo.
+  - 🔵 **Todas (N):** Vista histórica consolidada sin exclusiones.
+* **Anulación Lógica (*Soft Delete*) y Reactivación:** Botón directo en tarjeta para marcar ofertas como `Inactiva` o reactivarlas en Google Sheets sin eliminar filas ni romper los consecutivos correlativos (`101`, `102`, `103`, etc.).
+* **Evaluación Dinámica de Vigencia:** Detección automática de ofertas caducadas (`calculateExpirationStatus`); si la fecha de vigencia expira, conmuta deterministamente a *Inactiva (Vencida)*.
+* **Reseteo Enfocado en Cliente y Proyecto:** Al crear una "Nueva Cotización", la interfaz restablece el formulario en el Paso 1 y enfoca automáticamente el campo de cliente.
+* **Reconstrucción Fiel en Texto Plano:** Rehidrata todas las partidas, condiciones de pago y montos directamente desde las 14 columnas nativas de Google Sheets sin archivos temporales ni bases de datos costosas.
 * **Actualización Atómica In-Place:** Permite modificar precios, fechas y partidas, actualizando la fila existente en la hoja sin alterar el contador global de consecutivos (`isUpdate: true`).
 * **Clonación con 1 Clic:** Opción para duplicar cualquier cotización cargada asignándole un nuevo consecutivo libre.
 
@@ -89,7 +96,7 @@ MYC/
 ├── src/                                      # Código fuente modular de React 19
 │   ├── modules/
 │   │   ├── quote/                            # Dominio principal de cotizaciones
-│   │   │   ├── components/                   # QuickForm, QuoteDocument, QuoteRecoveryModal...
+│   │   │   ├── components/                   # QuickForm, QuoteDocument, QuoteRecoveryView...
 │   │   │   ├── hooks/                        # useQuote, useQuotePdf
 │   │   │   └── services/                     # quote-calculator, google-sheets.service, export-strategies...
 │   │   └── mailer/                           # Dominio de correos y WhatsApp (EmailModal)
@@ -103,7 +110,7 @@ MYC/
 │   └── index.css                             # Tailwind CSS v4 y reglas @media print
 │
 ├── .env.example                              # Plantilla de variables de entorno
-├── package.json                              # Versión 0.4.0 y dependencias
+├── package.json                              # Versión 0.5.0 y dependencias
 └── tsconfig.json                             # Configuración estricta TypeScript
 ```
 

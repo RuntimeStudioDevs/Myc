@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { QuoteData, QuoteItem, PricingMode } from '../types/quote.types';
 import { calculateQuoteTotals } from '../services/quote-calculator';
+import { calculateExpirationStatus } from '../services/google-sheets.service';
 import { toProperCase, toSentenceCase, cleanWhitespace } from '../../../shared/utils/text-formatter';
 import { formatCurrency, formatCOPInput } from '../../../shared/utils/currency';
 import {
@@ -25,6 +26,7 @@ import {
 
 interface QuickFormProps {
   quote: QuoteData;
+  resetTrigger?: number;
   onChange: (updated: QuoteData) => void;
   onFinalizeQuote: () => Promise<boolean>;
   onDownloadQuote: () => void;
@@ -41,13 +43,25 @@ export const QuickForm: React.FC<QuickFormProps> = ({
   onNewQuote,
   onCloneQuote,
   isFinalizing = false,
+  resetTrigger,
 }) => {
   const [activeTab, setActiveTab] = useState<number>(1);
   const [taskCreationMode, setTaskCreationMode] = useState<'simple' | 'detailed'>('simple');
   const [attemptedStep1, setAttemptedStep1] = useState<boolean>(false);
 
+  // Cuando se solicita una Nueva Cotización, reiniciar el formulario en el Paso 1 (Cliente y Proyecto)
+  React.useEffect(() => {
+    if (resetTrigger !== undefined && resetTrigger > 0) {
+      setActiveTab(1);
+    }
+  }, [resetTrigger]);
+
   const updateField = (field: keyof QuoteData, value: any) => {
     const updated = { ...quote, [field]: value };
+    if (field === 'fechaVigencia') {
+      updated.validityDays = value;
+      updated.statusVigencia = calculateExpirationStatus(value);
+    }
     const newTotals = calculateQuoteTotals(updated);
     updated.subtotal = newTotals.subtotal;
     updated.total = newTotals.total;
@@ -56,6 +70,12 @@ export const QuickForm: React.FC<QuickFormProps> = ({
 
   const updateMultipleFields = (fields: Partial<QuoteData>) => {
     const updated = { ...quote, ...fields };
+    if (fields.fechaVigencia !== undefined) {
+      updated.validityDays = fields.fechaVigencia;
+      if (fields.statusVigencia === undefined) {
+        updated.statusVigencia = calculateExpirationStatus(fields.fechaVigencia);
+      }
+    }
     const newTotals = calculateQuoteTotals(updated);
     updated.subtotal = newTotals.subtotal;
     updated.total = newTotals.total;
@@ -669,6 +689,31 @@ export const QuickForm: React.FC<QuickFormProps> = ({
                   <label className="text-sm font-bold text-slate-900">
                     Fecha de Vigencia de la Oferta
                   </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                      quote.statusVigencia === 'Activa'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}
+                  >
+                    <span className={`w-2 h-2 rounded-full ${quote.statusVigencia === 'Activa' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                    <span>{quote.statusVigencia === 'Activa' ? 'Activa' : 'Inactiva (Vencida)'}</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = quote.statusVigencia === 'Activa' ? 'Inactiva' : 'Activa';
+                      updateField('statusVigencia', next);
+                    }}
+                    className="text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-white border border-slate-300 hover:bg-slate-100 px-2 py-0.5 rounded-lg transition-colors cursor-pointer shadow-2xs"
+                    title={quote.statusVigencia === 'Activa' ? 'Desactivar esta oferta' : 'Reactivar esta oferta'}
+                  >
+                    {quote.statusVigencia === 'Activa' ? 'Desactivar' : 'Activar'}
+                  </button>
                 </div>
               </div>
 

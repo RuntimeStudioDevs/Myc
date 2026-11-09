@@ -95,9 +95,10 @@ export function formatConsecutive(num: number | string | undefined | null): stri
 /**
  * Calcula si una cotización está Activa o Inactiva según su fecha de vigencia (DD/MM/YYYY).
  */
-export function calculateExpirationStatus(fechaVigenciaStr?: string): 'Activa' | 'Inactiva' {
+export function calculateExpirationStatus(fechaVigenciaStr?: string | null): 'Activa' | 'Inactiva' {
   if (!fechaVigenciaStr) return 'Activa';
-  const parts = String(fechaVigenciaStr).trim().split('/');
+  const clean = cleanSimpleDate(fechaVigenciaStr);
+  const parts = clean.trim().split('/');
   if (parts.length === 3) {
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
@@ -311,19 +312,28 @@ export async function fetchQuoteCatalog(): Promise<QuoteCatalogResult> {
 
     const defaultCode = result.config?.Codigo_Serie_Cotizacion || getCachedCompanyConfig().Codigo_Serie_Cotizacion || 'C1';
 
-    const normalizedCatalog: QuoteSummaryItem[] = result.catalog.map((item: any) => ({
-      quoteNumber: formatConsecutive(item.quoteNumber),
-      code: item.code || defaultCode,
-      clientName: String(item.clientName || 'Sin Nombre').trim(),
-      projectName: String(item.projectName || 'Sin Proyecto').trim(),
-      location: String(item.location || '').trim(),
-      date: cleanSimpleDate(item.date),
-      updatedAt: cleanSimpleDate(item.updatedAt || item.date),
-      total: Number(item.total) || 0,
-      statusCliente: item.statusCliente || 'Pendiente',
-      statusVigencia: item.statusVigencia || 'Activa',
-      fechaVigencia: cleanSimpleDate(item.fechaVigencia),
-    }));
+    const normalizedCatalog: QuoteSummaryItem[] = result.catalog.map((item: any) => {
+      const cleanVigencia = cleanSimpleDate(item.fechaVigencia);
+      const rawVigencia = String(item.statusVigencia || 'Activa').trim();
+      const computedVigencia: 'Activa' | 'Inactiva' =
+        rawVigencia.toLowerCase() === 'inactiva'
+          ? 'Inactiva'
+          : calculateExpirationStatus(cleanVigencia);
+
+      return {
+        quoteNumber: formatConsecutive(item.quoteNumber),
+        code: item.code || defaultCode,
+        clientName: String(item.clientName || 'Sin Nombre').trim(),
+        projectName: String(item.projectName || 'Sin Proyecto').trim(),
+        location: String(item.location || '').trim(),
+        date: cleanSimpleDate(item.date),
+        updatedAt: cleanSimpleDate(item.updatedAt || item.date),
+        total: Number(item.total) || 0,
+        statusCliente: item.statusCliente || 'Pendiente',
+        statusVigencia: computedVigencia,
+        fechaVigencia: cleanVigencia,
+      };
+    });
 
     return {
       success: true,
@@ -390,6 +400,12 @@ export async function fetchQuoteByNumber(quoteNumber: string): Promise<FetchQuot
     const rawQuote = result.quote;
     const cleanDate = cleanSimpleDate(rawQuote.date);
     const cleanVigencia = cleanSimpleDate(rawQuote.fechaVigencia);
+    const rawVigencia = String(rawQuote.statusVigencia || 'Activa').trim();
+    const computedStatusVigencia: 'Activa' | 'Inactiva' =
+      rawVigencia.toLowerCase() === 'inactiva'
+        ? 'Inactiva'
+        : calculateExpirationStatus(cleanVigencia);
+
     const resolvedCode = rawQuote.code || result.config?.Codigo_Serie_Cotizacion || getCachedCompanyConfig().Codigo_Serie_Cotizacion || 'C1';
     const resolvedLetterCode = rawQuote.letterCode || result.config?.Codigo_Serie_CartaPresentacion || getCachedCompanyConfig().Codigo_Serie_CartaPresentacion || 'CP 1';
 
@@ -402,6 +418,7 @@ export async function fetchQuoteByNumber(quoteNumber: string): Promise<FetchQuot
       date: cleanDate,
       fechaVigencia: cleanVigencia,
       validityDays: cleanVigencia,
+      statusVigencia: computedStatusVigencia,
       clientName: String(rawQuote.clientName || '').trim(),
       projectName: String(rawQuote.projectName || '').trim(),
       location: String(rawQuote.location || '').trim(),
@@ -591,6 +608,83 @@ export async function updateQuoteInGoogleSheets(quote: QuoteData): Promise<SaveQ
   } catch (err: any) {
     const errMsg = err.name === 'AbortError' ? 'Tiempo de espera agotado al actualizar en Google Sheets' : err.message;
     console.error(`[GoogleSheetsService] Error actualizando cotización N° ${cleanTarget}:`, err);
+    return {
+      success: false,
+      error: errMsg,
+    };
+  }
+}
+
+/**
+ * Modifica atómicamente el estado de vigencia o de cliente en Google Sheets (Soft Delete).
+ * Permite marcar una cotización como 'Inactiva' o reactivarla sin romper consecutivos.
+ */
+export async function updateQuoteStatusInGoogleSheets(
+  quoteNumber: string,
+  statusVigencia?: 'Activa' | 'Inactiva',
+  statusCliente?: string
+): Promise<SaveQuoteResult> {
+  const webhookUrl = getGoogleSheetsWebhookUrl();
+  const cleanTarget = formatConsecutive(quoteNumber);
+
+  if (!webhookUrl) {
+    return {
+      success: true,
+      isOfflineFallback: true,
+      quoteNumber: cleanTarget,
+      statusVigencia,
+      statusCliente,
+      message: `Estado de Cotización N° ${cleanTarget} actualizado en modo local.`,
+    };
+  }
+
+  const payload = {
+    action: 'set_quote_status',
+    quoteNumber: cleanTarget,
+    statusVigencia,
+    statusCliente,
+  };
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    const rawText = await response.text();
+    let result: any = {};
+    try {
+      result = JSON.parse(rawText);
+    } catch (_) {
+      throw new Error(`Google Sheets devolvió una respuesta no válida: ${rawText.slice(0, 100)}`);
+    }
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error || `No se pudo actualizar el estado de la cotización N° ${cleanTarget}`,
+      };
+    }
+
+    return {
+      success: true,
+      quoteNumber: cleanTarget,
+      statusVigencia: result.statusVigencia || statusVigencia,
+      statusCliente: result.statusCliente || statusCliente,
+      message: result.message || `Estado de cotización N° ${cleanTarget} actualizado exitosamente`,
+    };
+  } catch (err: any) {
+    const errMsg = err.name === 'AbortError' ? 'Tiempo de espera agotado al conectar con Google Sheets' : err.message;
+    console.error(`[GoogleSheetsService] Error actualizando estado de cotización N° ${cleanTarget}:`, err);
     return {
       success: false,
       error: errMsg,

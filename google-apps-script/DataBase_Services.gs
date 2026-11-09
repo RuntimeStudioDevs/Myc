@@ -283,6 +283,15 @@ function getQuotesCatalog(sheet) {
 
     const totalNum = typeof rRow[8] === 'number' ? rRow[8] : parseNumericValue(dRow[8]);
 
+    const rawVigenciaCell = String(dRow[10] || 'Activa').trim();
+    const fechaVigenciaClean = cleanDateText(dRow[11] || rRow[11]);
+    let computedStatusVigencia = rawVigenciaCell;
+    if (rawVigenciaCell.toLowerCase() === 'inactiva') {
+      computedStatusVigencia = 'Inactiva';
+    } else {
+      computedStatusVigencia = calculateExpirationStatus(fechaVigenciaClean);
+    }
+
     catalog.push({
       quoteNumber: formatConsecutiveNumber(cleanNum),
       code: quoteCode,
@@ -291,8 +300,8 @@ function getQuotesCatalog(sheet) {
       location: String(dRow[3] || '').trim() || '',
       total: totalNum,
       statusCliente: String(dRow[9] || 'Pendiente').trim(),
-      statusVigencia: String(dRow[10] || 'Activa').trim(),
-      fechaVigencia: cleanDateText(dRow[11] || rRow[11]),
+      statusVigencia: computedStatusVigencia,
+      fechaVigencia: fechaVigenciaClean,
       date: cleanDateText(dRow[12] || rRow[12]),
       updatedAt: cleanDateText(dRow[13] || rRow[13] || dRow[12] || rRow[12]),
     });
@@ -354,7 +363,13 @@ function getQuoteByNumber(sheet, targetNumber) {
       // 3. Fechas en texto plano estricto (DD/MM/YYYY sin hora ni GMT)
       const fechaVigenciaStr = cleanDateText(dRow[11] || rRow[11]);
       const fechaCreacionStr = cleanDateText(dRow[12] || rRow[12]);
-      const statusVigencia = calculateExpirationStatus(fechaVigenciaStr);
+      const rawVigenciaCell = String(dRow[10] || 'Activa').trim();
+      let statusVigencia = rawVigenciaCell;
+      if (rawVigenciaCell.toLowerCase() === 'inactiva') {
+        statusVigencia = 'Inactiva';
+      } else {
+        statusVigencia = calculateExpirationStatus(fechaVigenciaStr);
+      }
 
       const recoveredQuote = {
         code: config.Codigo_Serie_Cotizacion || 'C1',
@@ -508,6 +523,63 @@ function updateQuoteInSheet(sheet, quote) {
 }
 
 /**
+ * Modifica atómicamente el estado de una cotización (Activa / Inactiva) sin tocar datos ni consecutivos (Soft Delete)
+ */
+function setQuoteStatusInSheet(sheet, targetNumber, statusVigencia, statusCliente) {
+  if (!targetNumber) {
+    return { success: false, error: 'Número de cotización no especificado' };
+  }
+
+  const cleanTarget = formatConsecutiveNumber(targetNumber);
+  const targetParsed = parseInt(cleanTarget.replace(/\D/g, ''), 10);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow <= 1) {
+    return { success: false, error: 'La hoja no tiene registros' };
+  }
+
+  const numbersData = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  let targetRowIndex = -1;
+
+  for (let i = 0; i < numbersData.length; i++) {
+    const rawVal = numbersData[i][0];
+    const cleanNum = parseInt(String(rawVal).replace(/\D/g, ''), 10);
+    if (cleanNum === targetParsed) {
+      targetRowIndex = i + 2;
+      break;
+    }
+  }
+
+  if (targetRowIndex === -1) {
+    return { success: false, error: `Cotización N° ${cleanTarget} no encontrada en la base de datos.` };
+  }
+
+  const fechaActual = getLocalDateString();
+
+  if (statusVigencia) {
+    sheet.getRange(targetRowIndex, 11).setValue(statusVigencia);
+    sheet.getRange(targetRowIndex, 11).setNumberFormat('@');
+  }
+
+  if (statusCliente) {
+    sheet.getRange(targetRowIndex, 10).setValue(statusCliente);
+    sheet.getRange(targetRowIndex, 10).setNumberFormat('@');
+  }
+
+  // Actualizar columna 14 con la fecha de modificación
+  sheet.getRange(targetRowIndex, 14).setValue(fechaActual);
+  sheet.getRange(targetRowIndex, 14).setNumberFormat('@');
+
+  return {
+    success: true,
+    quoteNumber: cleanTarget,
+    statusVigencia: statusVigencia || sheet.getRange(targetRowIndex, 11).getDisplayValue(),
+    statusCliente: statusCliente || sheet.getRange(targetRowIndex, 10).getDisplayValue(),
+    message: `Estado de la Cotización N° ${cleanTarget} actualizado a "${statusVigencia || statusCliente}".`
+  };
+}
+
+/**
  * Manejador GET
  */
 function doGet(e) {
@@ -613,6 +685,14 @@ function doPost(e) {
       const quote = contents.quote || {};
       const updateResult = updateQuoteInSheet(quoteSheet, quote);
       return createJsonResponse(updateResult);
+    }
+
+    if (action === 'set_quote_status') {
+      const quoteNumber = contents.quoteNumber;
+      const statusVigencia = contents.statusVigencia;
+      const statusCliente = contents.statusCliente;
+      const statusResult = setQuoteStatusInSheet(quoteSheet, quoteNumber, statusVigencia, statusCliente);
+      return createJsonResponse(statusResult);
     }
 
     if (action === 'save_quote') {

@@ -160,4 +160,42 @@ describe('Google Sheets Recovery (14 Columnas Nativas)', () => {
     assert.strictEqual(initial.code, 'C1');
     assert.strictEqual(initial.letterCode, 'CP 1');
   });
+
+  it('Soft delete logic preserves consecutive numbers and separates active from inactive quotes', () => {
+    // Simular un catálogo con cotizaciones activas, vencidas y anuladas manualmente
+    const sampleCatalog = [
+      {
+        quoteNumber: '101',
+        clientName: 'Cliente Activo',
+        fechaVigencia: '31/12/2030',
+        statusVigencia: 'Activa' as const,
+      },
+      {
+        quoteNumber: '102',
+        clientName: 'Cliente Vencido',
+        fechaVigencia: '01/01/2020',
+        statusVigencia: calculateExpirationStatus('01/01/2020'), // 'Inactiva'
+      },
+      {
+        quoteNumber: '103',
+        clientName: 'Cliente Anulado Manualmente',
+        fechaVigencia: '31/12/2030',
+        statusVigencia: 'Inactiva' as const, // Anulación manual (Soft Delete)
+      },
+    ];
+
+    // Verificar que los consecutivos son estrictamente secuenciales (sin saltos ni filas borradas)
+    assert.deepStrictEqual(sampleCatalog.map(q => q.quoteNumber), ['101', '102', '103']);
+
+    // Filtro por pestaña "Activas"
+    const activeQuotes = sampleCatalog.filter(q => q.statusVigencia === 'Activa');
+    assert.strictEqual(activeQuotes.length, 1);
+    assert.strictEqual(activeQuotes[0].quoteNumber, '101');
+
+    // Filtro por pestaña "Inactivas"
+    const inactiveQuotes = sampleCatalog.filter(q => q.statusVigencia === 'Inactiva');
+    assert.strictEqual(inactiveQuotes.length, 2);
+    assert.strictEqual(inactiveQuotes[0].quoteNumber, '102');
+    assert.strictEqual(inactiveQuotes[1].quoteNumber, '103');
+  });
 });

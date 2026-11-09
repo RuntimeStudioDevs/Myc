@@ -6,7 +6,7 @@ import { QuoteToolbar } from './modules/quote/components/QuoteToolbar';
 import { QuickForm } from './modules/quote/components/QuickForm';
 import { QuoteDocument } from './modules/quote/components/QuoteDocument';
 import { PresentationLetterDocument } from './modules/quote/components/PresentationLetterDocument';
-import { QuoteRecoveryModal } from './modules/quote/components/QuoteRecoveryModal';
+import { QuoteRecoveryView } from './modules/quote/components/QuoteRecoveryView';
 import { Toast } from './shared/components/Toast';
 import { paginateQuoteItems } from './modules/quote/services/quote-paginator';
 import {
@@ -29,7 +29,9 @@ export default function App() {
   } = useQuote();
 
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
-  const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState<boolean>(false);
+  const [appView, setAppView] = useState<'workspace' | 'recovery'>('workspace');
+  const [resetTrigger, setResetTrigger] = useState<number>(0);
+  const viewportScrollRef = useRef<HTMLDivElement>(null);
   const documentRef = useRef<HTMLDivElement>(null);
   const vaultRef = useRef<HTMLDivElement>(null);
   const { isExporting, printDocument, downloadPdf } = useQuotePdf(documentRef, vaultRef);
@@ -82,7 +84,7 @@ export default function App() {
       if (!isBlank && !quote.clientName && !quote.projectName && quote.items.length === 0) {
         const minutesAgo = Math.max(1, Math.round((Date.now() - draft.timestamp) / 60000));
         showNotification(
-          `Borrador no guardado disponible (${draft.quote.code || 'C1'} N° ${draft.quote.quoteNumber}, hace ${minutesAgo}m). Abrí 'Recuperar' para cargarlo.`
+          `Borrador no guardado disponible (${draft.quote.code || 'C1'} N° ${draft.quote.quoteNumber}, hace ${minutesAgo}m). Abrí 'Todas las Cotizaciones' para cargarlo.`
         );
       }
     }
@@ -94,6 +96,12 @@ export default function App() {
   };
 
   const handleNewQuote = async () => {
+    if (appView === 'recovery') {
+      setAppView('workspace');
+    }
+    setMobileTab('editor');
+    setResetTrigger((prev) => prev + 1);
+    viewportScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     showNotification('Consultando consecutivo y preparando nueva cotización...');
     const msg = await resetQuote();
     showNotification(msg);
@@ -107,6 +115,10 @@ export default function App() {
 
   const handleSelectRecoveredQuote = (recovered: QuoteData) => {
     loadRecoveredQuote(recovered);
+    setAppView('workspace');
+    setMobileTab('editor');
+    setResetTrigger((prev) => prev + 1);
+    viewportScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     showNotification(`Cotización N° ${recovered.quoteNumber} cargada exitosamente para edición.`);
   };
 
@@ -180,6 +192,19 @@ export default function App() {
     downloadPdf(quote, strategyId, showNotification);
   };
 
+  if (appView === 'recovery') {
+    return (
+      <div className="h-screen max-h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 flex flex-col font-sans select-none antialiased">
+        <Toast message={notification} />
+        <QuoteRecoveryView
+          onBack={() => setAppView('workspace')}
+          onSelectQuote={handleSelectRecoveredQuote}
+          currentQuoteHasChanges={hasUnsavedChanges}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen max-h-screen w-screen overflow-hidden bg-slate-100 text-slate-800 flex flex-col font-sans select-none antialiased">
       {/* Barra Superior Institucional con Menú Desplegable y Botón de Recuperación */}
@@ -189,15 +214,7 @@ export default function App() {
         activeView={activeDocumentView === 'both' ? 'joint' : activeDocumentView}
         onNewQuote={handleNewQuote}
         onDownloadPdf={handleDownloadPdf}
-        onOpenRecovery={() => setIsRecoveryModalOpen(true)}
-      />
-
-      {/* Modal de Búsqueda y Confirmación Emergente de Recuperación */}
-      <QuoteRecoveryModal
-        isOpen={isRecoveryModalOpen}
-        onClose={() => setIsRecoveryModalOpen(false)}
-        onSelectQuote={handleSelectRecoveredQuote}
-        currentQuoteHasChanges={hasUnsavedChanges}
+        onOpenRecovery={() => setAppView('recovery')}
       />
 
       {/* Notificación Toast */}
@@ -274,6 +291,7 @@ export default function App() {
               onNewQuote={handleNewQuote}
               onCloneQuote={handleCloneQuote}
               isFinalizing={isFinalizing}
+              resetTrigger={resetTrigger}
             />
           </div>
         </aside>
@@ -300,6 +318,7 @@ export default function App() {
 
           {/* Visor con Scroll */}
           <div
+            ref={viewportScrollRef}
             id="quote-viewport-scroll"
             className="flex-1 overflow-auto p-3 sm:p-8 flex items-start justify-center bg-slate-300/40 print:p-0 print:m-0 print:overflow-visible print:block print:bg-white print:w-[210mm]"
           >

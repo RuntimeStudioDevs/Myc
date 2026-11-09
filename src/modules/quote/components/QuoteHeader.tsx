@@ -164,10 +164,10 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
             type="button"
             onClick={onOpenRecovery}
             className="hover:text-blue-900 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer text-blue-700 font-bold"
-            title="Buscar y recuperar cotización previa desde Google Sheets"
+            title="Ver todas las cotizaciones registradas en Google Sheets"
           >
             <Search className="w-3.5 h-3.5 text-blue-600" />
-            Recuperar Cotización
+            Todas las Cotizaciones
           </button>
         )}
 
@@ -213,7 +213,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
             type="button"
             onClick={onOpenRecovery}
             className="lg:hidden p-2 rounded-xl text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition-colors flex items-center justify-center cursor-pointer shrink-0"
-            title="Recuperar cotización previa"
+            title="Ver todas las cotizaciones"
           >
             <Search className="w-4 h-4 text-blue-700" />
           </button>
@@ -331,7 +331,7 @@ export const QuoteHeader: React.FC<QuoteHeaderProps> = ({
                   className="w-full p-2.5 text-xs font-bold text-blue-900 bg-blue-50 hover:bg-blue-100 rounded-xl border border-blue-200 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Search className="w-4 h-4 text-blue-600" />
-                  <span>Recuperar Cotización</span>
+                  <span>Todas las Cotizaciones</span>
                 </button>
               )}
 
