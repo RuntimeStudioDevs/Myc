@@ -3,6 +3,11 @@ import { QuoteData, QuoteItem, PricingMode } from '../types/quote.types';
 import { calculateQuoteTotals } from '../services/quote-calculator';
 import { calculateExpirationStatus } from '../services/google-sheets.service';
 import { toProperCase, toSentenceCase, cleanWhitespace } from '../../../shared/utils/text-formatter';
+import {
+  correctConstructionText,
+  correctProjectName,
+  correctCommercialNotes,
+} from '../../../shared/utils/orthography-corrector';
 import { formatCurrency, formatCOPInput } from '../../../shared/utils/currency';
 import {
   User,
@@ -48,6 +53,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({
   const [activeTab, setActiveTab] = useState<number>(1);
   const [taskCreationMode, setTaskCreationMode] = useState<'simple' | 'detailed'>('simple');
   const [attemptedStep1, setAttemptedStep1] = useState<boolean>(false);
+
 
   // Cuando se solicita una Nueva Cotización, reiniciar el formulario en el Paso 1 (Cliente y Proyecto)
   React.useEffect(() => {
@@ -350,7 +356,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({
                     type="text"
                     value={quote.projectName}
                     onChange={(e) => updateField('projectName', e.target.value)}
-                    onBlur={() => updateField('projectName', toProperCase(cleanWhitespace(quote.projectName)))}
+                    onBlur={() => updateField('projectName', correctProjectName(quote.projectName))}
                     placeholder="Ej: Adecuación y Acabados Arquitectónicos"
                     className={`w-full h-12 pl-11 pr-4 text-base font-medium rounded-xl outline-none text-slate-900 border transition-all ${
                       attemptedStep1 && !isProjectValid
@@ -559,7 +565,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({
                             type="text"
                             value={item.title || ''}
                             onChange={(e) => updateItemTitle(item.id, e.target.value)}
-                            onBlur={() => updateItemTitle(item.id, toProperCase(item.title || ''))}
+                            onBlur={() => updateItemTitle(item.id, correctConstructionText(item.title || '', { ensureEndingPeriod: false }).corrected)}
                             placeholder="Ej: MAMPOSTERÍA Y PAÑETES"
                             className="w-full h-10 px-3 text-sm font-semibold bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none text-slate-900"
                           />
@@ -574,7 +580,7 @@ export const QuickForm: React.FC<QuickFormProps> = ({
                           rows={2}
                           value={item.description}
                           onChange={(e) => updateItemDescription(item.id, e.target.value)}
-                          onBlur={() => updateItemDescription(item.id, toSentenceCase(cleanWhitespace(item.description)))}
+                          onBlur={() => updateItemDescription(item.id, correctConstructionText(item.description, { ensureEndingPeriod: true }).corrected)}
                           placeholder="Especificaciones, alcance de obra, suministro e instalación..."
                           className="w-full p-3 text-sm bg-white border border-slate-300 rounded-lg focus:border-blue-700 outline-none resize-y text-slate-900"
                         />
@@ -832,6 +838,21 @@ export const QuickForm: React.FC<QuickFormProps> = ({
                   <span>La suma del anticipo ({quote.startPct}%) y el saldo ({quote.endPct}%) debe ser exactamente 100%.</span>
                 </div>
               )}
+            </div>
+
+            {/* CONDICIONES Y OBSERVACIONES COMERCIALES */}
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-900 block">
+                Condiciones y Observaciones Comerciales
+              </label>
+              <textarea
+                rows={2}
+                value={quote.notes || ''}
+                onChange={(e) => updateField('notes', e.target.value)}
+                onBlur={() => updateField('notes', correctCommercialNotes(quote.notes || ''))}
+                placeholder="Condiciones de pago, tiempo de entrega o notas comerciales..."
+                className="w-full p-3 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:border-blue-700 outline-none resize-y text-slate-900 font-medium"
+              />
             </div>
 
             {/* RESUMEN ECONÓMICO FINAL */}

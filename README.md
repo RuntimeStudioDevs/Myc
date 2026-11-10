@@ -45,8 +45,12 @@ Estructurado en `src/modules/quote/services/export-strategies/` para ofrecer 4 m
 ### 6. Normalizador de Espacios de Color Acelerado por Hardware
 * Módulo especializado (`html2canvas-color-shim.ts`) que resuelve la incompatibilidad entre **Tailwind CSS v4** (que compila en `oklch` y `oklab`) y los analizadores tradicionales de canvas, convirtiendo colores en tiempo real (< 1 ms) a sRGB estándar.
 
-### 7. Formateador Ortográfico y Preservación de Siglas
-* Utilidad `text-formatter.ts` con disparadores `onBlur` que estandariza mayúsculas iniciales (*Title Case*) preservando siglas empresariales colombianas (`S.A.S.`, `S.A.`, `LTDA`, `E.U.`, `NIT`, `C.C.`, `M&C`).
+### 7. Autocorrector Ortográfico Especializado y Normalizador de Unidades de Obra
+* **Motor Determinista Offline en `onBlur` (`orthography-corrector.ts`):** Corrige automáticamente la ortografía, tildes y puntuación al salir del campo o cambiar de línea, sin saltos de cursor ni conflictos con teclados móviles.
+* **Diccionario Especializado de Obra Civil:** Más de 500 términos de ingeniería civil colombiana acentuados con precisión (`instalación`, `adecuación`, `demolición`, `excavación`, `mampostería`, `tubería`, `eléctrico`, `hidráulico`, `hormigón`, etc.).
+* **Normalización Automática de Unidades Técnicas:** Conversión instantánea de unidades como `m2`/`mt2` a **`m²`**, `m3`/`mt3` a **`m³`**, `psi` a **`PSI`**, y abreviaturas oficiales (`pulg.`, `und.`, `glb.`).
+* **Blindaje de Notación de Ingeniería:** Protección absoluta para fracciones de pulgada (`1/2"`, `3/8"`), resistencias (`3000 PSI`), dosificaciones (`1:2:3`) y acrónimos protegidos (`PVC`, `AIU`, `NIT`, `S.A.S.`).
+* **Protección de Nombres Propios:** Exclusión del nombre del cliente para evitar cualquier sustitución léxica involuntaria en razones sociales y marcas.
 
 ### 8. Arquitectura Responsiva Omnicanal (Mobile, Tablet, Desktop & 4K)
 * **Selector Adaptativo de Modos (`< 1024px`):** En dispositivos móviles y tablets, permite alternar con un toque entre la **Consola de Obra** a pantalla completa y el visor de **Vista Previa & PDF**, manteniendo el modo dual simultáneo en computadoras de escritorio.
@@ -103,14 +107,14 @@ MYC/
 │   │
 │   ├── shared/                               # Componentes y utilidades transversales
 │   │   ├── components/                       # MCLogo, Toast
-│   │   └── utils/                            # currency, text-formatter, html2canvas-color-shim
+│   │   └── utils/                            # currency, text-formatter, orthography-corrector...
 │   │
 │   ├── App.tsx                               # Orquestador visual con buscador y alertas de borrador
 │   ├── main.tsx                              # Punto de entrada React
 │   └── index.css                             # Tailwind CSS v4 y reglas @media print
 │
 ├── .env.example                              # Plantilla de variables de entorno
-├── package.json                              # Versión 0.5.0 y dependencias
+├── package.json                              # Versión 0.6.0 y dependencias
 └── tsconfig.json                             # Configuración estricta TypeScript
 ```
 
