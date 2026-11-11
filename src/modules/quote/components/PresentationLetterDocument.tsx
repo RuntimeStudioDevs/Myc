@@ -266,7 +266,7 @@ export const PresentationLetterDocument = forwardRef<
                   <span className="font-semibold text-slate-900 font-poppins">
                     {quote.endPct ? `${quote.endPct}%` : renderVariable('', '(PORCENTAJE AL FINALIZAR)', 'Porcentaje Final')}
                   </span>{' '}
-                  restante al finalizar el trabajo.
+                  restante será cancelado de manera escalonada según las fases del proyecto.
                 </div>
               </div>
 

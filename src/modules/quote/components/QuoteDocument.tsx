@@ -329,7 +329,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, QuoteDocumentProps>(
                           <span className="font-medium font-poppins">
                             {quote.endPct ? `${quote.endPct}%` : renderVariable('', '(PORCENTAJE AL FINALIZAR)', 'Porcentaje Final')}
                           </span>{' '}
-                          restante será cancelado de manera escalonada según las fases del proyecto
+                          restante será cancelado de manera escalonada según las fases del proyecto.
                         </div>
 
                         {/* Advertencia en Rojo #ff3131 (exacto de Agente.svg) */}
