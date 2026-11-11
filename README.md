@@ -114,7 +114,7 @@ MYC/
 │   └── index.css                             # Tailwind CSS v4 y reglas @media print
 │
 ├── .env.example                              # Plantilla de variables de entorno
-├── package.json                              # Versión 0.6.0 y dependencias
+├── package.json                              # Versión 0.6.1 y dependencias
 └── tsconfig.json                             # Configuración estricta TypeScript
 ```
 
